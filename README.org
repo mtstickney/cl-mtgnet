@@ -3,6 +3,10 @@
   handles all the details of marshalling and unmarshalling, including
   matching out-of-order responses to the appropriate request.
 
+* Dependencies
+  This library depends on the CL-NETSTRING+ library, as well as the
+  quicklisp-installable CL-JSON and TRIVIAL-UTF-8 libs.
+
 * API
   Remote methods are treated like FFI calls: the client creates
   definitions for the methods it wishes to use, and can then call
