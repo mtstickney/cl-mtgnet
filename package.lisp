@@ -1,5 +1,7 @@
 ;;;; package.lisp
 
 (defpackage #:cl-rpc
-  (:use #:cl))
-
+  (:use #:cl)
+  (:export #:define-rpc-method
+           #:with-batch-calls
+           #:wait))

@@ -1,1 +1,112 @@
-This is the stub README.txt for the "cl-rpc" project.
+* About
+  CL-MTGNET is a client library for the MTGNet RPC protocol. The library
+  handles all the details of marshalling and unmarshalling, including
+  matching out-of-order responses to the appropriate request.
+
+* API
+  Remote methods are treated like FFI calls: the client creates
+  definitions for the methods it wishes to use, and can then call
+  those methods as if they were local functions.
+
+** Method Definition
+   Most clients will want to use the high-level macros to define
+   method functions that handle the details of calling. The method
+   definition macro is relatively simple:
+#+begin_src lisp
+  (defmacro define-rpc-method ((method &optional service  &key
+  notification) &body args))
+#+end_src
+
+   =method= and =service= are symbols naming the method and the
+   service =method= belongs to. =define-rpc-method= will create a
+   function named =<method>=, which takes a socket stream, a symbol
+   naming the service, and the arguments of the method. If =service=
+   is provided, the function will be named =<service>-<method>= and
+   will not take a service symbol as a parameter. Note that both
+   =method= and =service= symbols will be processed by CL-JSON, so
+   the standard name-mangling applies (e.g. =describe-method= will
+   become =describeMethod= when sent to the server).
+
+   If =notification= is not supplied or is =nil=, the function will
+   return a future object that will return the value of the method (or
+   signal an error) when =wait= is called on it. If =notification= is
+   not =nil=, the function will return immediately with no value
+   (since no response is expected from the server).
+
+*** Examples
+#+begin_src lisp
+  ;; Define a method without specifying a service
+  (define-rpc-method
+      ;; Method name
+      (describe-method)
+      ;; Method arguments
+      method-name)
+  
+  ;; Invoke the method on the 'server' service
+  ;; (wait (describe-method sock server "version")) => [...]
+  
+  ;; Define a method on a specific service
+  (define-rpc-method (describe-method server) method-name)
+  
+  ;; (wait (server-describe-method "version")) => [...]
+  
+  ;; Define a notification method
+  (define-rpc-method (poke server :notification t) msg)
+  
+  ;; Note the lack of a WAIT call here
+  ;; (server-poke "Poked for no reason!") => No value
+  
+#+end_src
+
+** Batched Calls
+   The MTGNet protocol features the ability to send requests to the
+   server in a batch, with the guarantee that the server will hold the
+   responses for those calls until they're all ready before returning
+   them. Clients can submit a batch of calls using the
+   =with-batch-calls= macro:
+#+begin_src lisp
+  ;; With STREAM, DESCRIBE-METHOD and VERSION defined elsewhere...
+  (let (describe-future
+        version-future)
+    (with-batch-calls
+        (setf describe-future (server-describe-method sock "version")
+              version-future (server-version sock)))
+    (values (wait description-future)
+            ;; This will return immediately
+            (wait version-future)))
+  
+#+end_src
+
+   Any method calls made within a =with-batch-calls= macro won't be
+   submitted to the server until the end of the block. *Note*: since
+   none of the calls in a =with-batch-calls= block will be submitted
+   until the block is left, calling =wait= on one of the returned
+   futures will deadlock.
+
+** Futures
+   The non-notification functions created with =define-rpc-method=
+   return a future object that will hold the return value of the
+   method or signal an error if there was one. =wait= can be used to
+   retrieve a completion value or signal an error: it takes a future
+   object, and returns when that future completes.
+
+   Right now the underlying IO mechanism isn't really
+   asynchronous. =wait= drives the IO processing, so if a lot of
+   requests are made and =wait= is never called, the socket buffer
+   could fill and cause the server to block. This shouldn't be an
+   issue under most workloads, however.
+   
+* TODO
+  - Use an asynch IO mechanism to avoid the need to call =wait=.
+  - Add timeouts and keepalive options for rpc methods.
+  - Accept strings as well as symbols for method and service names.
+  - Use typespec values from the server to do typechecking where
+    possible.
+    - This could be a performance issue, so this may need to be a
+      disable-able feature.
+  - Allow clients to specify non-mangled names?
+  - Document signaled conditions once they're all in place.
+  - Give the client some control over the encoding of arguments passed
+    to methods.
+    - Either allow client to supply pre-encoded values (potential
+      badness here), or supply encoder functions.
