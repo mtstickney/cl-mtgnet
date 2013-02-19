@@ -92,7 +92,7 @@
    could fill and cause the server to block. This shouldn't be an
    issue under most workloads, however.
    
-* TODO
+* Future TODOs
   - Use an asynch IO mechanism to avoid the need to call =wait=.
   - Add timeouts and keepalive options for rpc methods.
   - Accept strings as well as symbols for method and service names.
