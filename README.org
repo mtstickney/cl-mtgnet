@@ -44,7 +44,7 @@
   :    method-name)
   :
   : ;; Invoke the method on the 'server' service
-  : ;; (wait (describe-method sock server "version")) => [...]
+  : ;; (wait (describe-method sock 'server "version")) => [...]
   :
   : ;; Define a method on a specific service
   : (define-rpc-method (describe-method server) method-name)
