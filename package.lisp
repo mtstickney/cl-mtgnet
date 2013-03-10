@@ -1,6 +1,6 @@
 ;;;; package.lisp
 
-(defpackage #:cl-rpc
+(defpackage #:cl-mtgnet
   (:use #:cl)
   (:export #:define-rpc-method
            #:with-batch-calls
