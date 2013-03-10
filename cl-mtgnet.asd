@@ -10,4 +10,4 @@
                #:cl-netstring+)
   :components ((:file "package")
                (:file "marshall")
-               (:file "cl-mtnet")))
+               (:file "cl-mtgnet")))
