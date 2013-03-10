@@ -124,19 +124,15 @@ arrives. Will process all results in a response before returning."
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (defun invoke-rpc-method (sock service method args &key notification)
-  (let ((call (make-call-obj service method args))
-        (batch '()))
+  (let ((call (make-call-obj service method args)))
     (declare (special *rpc-batch*))
     ;; if *rpc-batch* is bound, just add the call to it
     (if (boundp '*rpc-batch*)
-      (push call *rpc-batch*)
-      (progn
-        (push call batch)
-        (write-request sock batch)
-        (if notification
-            (values)
-            (make-result-future (rpc-call-id call) sock))))))
-
+        (push call *rpc-batch*)
+        (write-request (socket con) (list call)))
+    (if notification
+        (values)
+        (make-result-future (rpc-call-id call) sock))))
 
 (defmacro with-batch-calls ((stream &optional (batch-req nil batch-supplied-p)) &body body)
   `(let ((*rpc-batch* ,(if batch-supplied-p batch-req '())))
