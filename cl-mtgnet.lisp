@@ -5,6 +5,11 @@
 ;; TODO: RPC method calls are returning a whole result structure, not
 ;; the data/throwing an error.
 
+;; Utility funcs
+(declaim (inline has-key))
+(defun has-key (key map)
+  (nth-value 1 (gethash key map)))
+
 ;; Storage for out-of-order responses
 (defvar *response-bucket* (make-hash-table :test 'equal))
 
