@@ -34,11 +34,21 @@
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
     (unmarshall-response (recv-string (usocket:socket-stream (socket con))))))
-;; Storage for out-of-order responses
-(defvar *response-bucket* (make-hash-table :test 'equal))
 
+(defgeneric send-request (con request &key flush)
+  (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
+  (:method ((con rpc-connection) request &key (flush t))
+    (check-type request rpc-request)
+    (let* ((encoded-request (with-output-to-string (json:*json-output*)
+                             (marshall-request request)))
+           (request-data (trivial-utf-8:string-to-utf-8-bytes
+                          encoded-request))
+           (stream (usocket:socket-stream (socket con))))
+      (cl-netstring+:write-netstring-bytes stream
+                                           request-data)
+      (when flush
+        (finish-output stream)))))
 
-;;; Bucket stuff for receiving responses
 (define-condition duplicate-result-id ()
   ((id)))
 
@@ -52,61 +62,34 @@
       (setf (gethash id bucket) result)
       (values))))
 
-(defun read-response-with-id (id sock-stream)
-  "Read responses from SOCK-STREAM, adding results to
-*RESPONSE-BUCKET* until a request containing a response with id ID
-arrives. Will process all results in a response before returning."
-  (declare (special *response-bucket*))
+;; TODO: Error approach: set error-status/condition on connection on
+;; read; when a future completes later, it will either return the
+;; received result (if one was retrieved without error), or re-signal
+;; the stored condition (is it reasonable to re-throw the same
+;; condition more than once? What if error handling has been done
+;; in-between?).
+(defun read-result-with-id (con id)
+  "Read responses from CON, storing results until a request containing
+a response with id ID arrives. Will process all results in a response
+before returning."
   ;; TODO: this is probably not the right thing to do, and has case issues
-  (when (symbolp id)
-      (setf id (string-downcase (symbol-name id))))
-  (labels ((contains (id bucket)
-             (format *debug-io* "Contains ~S ~S~%" id bucket)
-             (nth-value 1 (gethash id bucket)))
-           (add-to-bucket (result)
-             (format *debug-io* "add-to-bucket ID is ~S~%" (rpc-result-id result))
-             (when (contains (rpc-result-id result) *response-bucket*)
-               (error 'duplicate-result-id :id (rpc-result-id result)))
-             (setf (gethash (rpc-result-id result) *response-bucket*)
-                   result)
-             (values)))
-    (format *debug-io* "Function ID is ~S~%" id)
-    (when (contains id *response-bucket*)
-      (format *debug-io* "Found the right response, returning~%")
-      (prog1
-          (gethash id *response-bucket*)
-        (remhash id *response-bucket*)))
+  (let ((id (if (symbolp id)
+                (string-downcase (symbol-name id))
+                id))
+        (bucket (result-bucket con)))
+    (loop until (has-key id bucket)
+       with response = (read-response con)
+       ;; a response is a list of results
+       do (mapc #'(lambda (r) (add-result con r))
+                response))
+    ;; Return the result and remove it from the bucket
+    (prog1 (gethash id bucket)
+      (remhash id bucket))))
 
-    (loop until (contains id *response-bucket*)
-       with response = (unmarshall-response (recv-string sock-stream))
-       do (mapc #'(lambda (result)
-                    (format *debug-io* "Adding result ~S~%" result)
-                    (add-to-bucket result)) response)
-         (format *debug-io* "Added response to bucket~%"))
-    (prog1 (gethash id *response-bucket*)
-      (remhash id *response-bucket*))))
-
-;;; Wire format wrappers
-(defun send-string (sock-stream str)
-  (let ((data (trivial-utf-8:string-to-utf-8-bytes str)))
-    (cl-netstring+:write-netstring-bytes sock-stream data)
-    (finish-output sock-stream)))
-
-(defun recv-string (sock-stream)
-  (let ((data (cl-netstring+:read-netstring-data sock-stream)))
-    (trivial-utf-8:utf-8-bytes-to-string data)))
-
-;;; TODO: set up conditions for this layer, if necessary.
-(defun write-request (stream request)
-  "Marshal REQUEST and send it over STREAM."
-  (let* ((request-data (with-output-to-string (json:*json-output*)
-                         (marshall-request request))))
-    (send-string stream request-data)))
-
-(defun make-result-future (id stream)
-  "Return a (funcallable) future that produces a response with an id of ID from STREAM."
+(defun make-result-future (con id)
+  "Return a future that produces a result with an id of ID from CON."
   (lambda ()
-    (read-response-with-id id stream)))
+    (read-response-with-id con id)))
 
 (defun wait (future)
   "Wait for a future to complete, then return it's value."
@@ -123,7 +106,7 @@ arrives. Will process all results in a response before returning."
                      (gensym "CALL"))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
-(defun invoke-rpc-method (sock service method args &key notification)
+(defun invoke-rpc-method (con service method args &key notification)
   (let ((call (make-call-obj service method args)))
     (declare (special *rpc-batch*))
     ;; if *rpc-batch* is bound, just add the call to it
@@ -132,7 +115,7 @@ arrives. Will process all results in a response before returning."
         (write-request (socket con) (list call)))
     (if notification
         (values)
-        (make-result-future (rpc-call-id call) sock))))
+        (make-result-future con (rpc-call-id call)))))
 
 (defmacro with-batch-calls ((stream &optional (batch-req nil batch-supplied-p)) &body body)
   `(let ((*rpc-batch* ,(if batch-supplied-p batch-req '())))
