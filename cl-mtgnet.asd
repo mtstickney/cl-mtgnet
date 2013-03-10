@@ -7,7 +7,8 @@
   :license "Specify license here"
   :depends-on (#:trivial-utf-8
                #:cl-json
-               #:cl-netstring+)
+               #:cl-netstring+
+               #:usocket)
   :components ((:file "package")
                (:file "marshall")
                (:file "cl-mtgnet")))
