@@ -31,7 +31,7 @@
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
-    (unmarshall-response (recv-string (usocket:socket-stream (sock con))))))
+    (unmarshall-response (recv-string (usocket:socket-stream (socket con))))))
 ;; Storage for out-of-order responses
 (defvar *response-bucket* (make-hash-table :test 'equal))
 
@@ -45,7 +45,7 @@
   (:method ((con rpc-connection) (result rpc-result))
     (let ((id (rpc-result-id result))
           (bucket (result-bucket con)))
-      (when (hash-key id bucket)
+      (when (has-key id bucket)
         (error 'duplicate-result-id :id id))
       (setf (gethash id bucket) result)
       (values))))
@@ -87,7 +87,7 @@ arrives. Will process all results in a response before returning."
 ;;; Wire format wrappers
 (defun send-string (sock-stream str)
   (let ((data (trivial-utf-8:string-to-utf-8-bytes str)))
-    (cl-netstring+:write-netstring-bytes sock)
+    (cl-netstring+:write-netstring-bytes sock-stream data)
     (finish-output sock-stream)))
 
 (defun recv-string (sock-stream)
