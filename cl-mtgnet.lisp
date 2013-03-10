@@ -8,6 +8,7 @@
 ;; Utility funcs
 (declaim (inline has-key))
 (defun has-key (key map)
+  (check-type map hash-table)
   (nth-value 1 (gethash key map)))
 
 (defclass rpc-connection ()
@@ -19,6 +20,7 @@
   (:documentation "Class representing a connection to an RPC server"))
 
 (defmethod initialize-instance :after ((con rpc-connection) &rest initargs)
+  (declare (ignore initargs))
   (setf (socket con) (usocket:socket-connect (connection-address con)
                                              (connection-port con)
                                              :element-type '(unsigned-byte 8))))
