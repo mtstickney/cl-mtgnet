@@ -8,36 +8,6 @@
 ;; Storage for out-of-order responses
 (defvar *response-bucket* (make-hash-table :test 'equal))
 
-;;; Wire format wrappers
-(defun send-data (sock-stream data)
-  (cl-netstring+:write-netstring-bytes sock-stream data)
-  (finish-output sock-stream))
-
-(defun send-string (sock str)
-  (format *debug-io* "About to send the string ~S~%" str)
-  (send-data sock
-             (trivial-utf-8:string-to-utf-8-bytes
-              str)))
-
-(defun recv-data (sock-stream)
-  (cl-netstring+:read-netstring-data sock-stream))
-
-(defun recv-string (sock-stream)
-  (let* ((data (recv-data sock-stream))
-         (str (trivial-utf-8:utf-8-bytes-to-string data)))
-    (format *debug-io* "Received string ~S~%" str)
-    str))
-
-;;; TODO: set up conditions for this layer, if necessary.
-(defun write-request (stream request)
-  "Marshal REQUEST and send it over STREAM."
-  (let* ((request-data (with-output-to-string (json:*json-output*)
-                         (marshall-request request))))
-    (send-string stream request-data)))
-
-(defun read-json-obj (stream)
-  "Read a message from STREAM and unmarshal it (returns the unmarshalled object)."
-  (json:decode-json-from-string (recv-string stream)))
 
 ;;; Bucket stuff for receiving responses
 (define-condition duplicate-result-id ()
@@ -77,6 +47,36 @@ arrives. Will process all results in a response before returning."
     (prog1 (gethash id *response-bucket*)
       (remhash id *response-bucket*))))
 
+;;; Wire format wrappers
+(defun send-data (sock-stream data)
+  (cl-netstring+:write-netstring-bytes sock-stream data)
+  (finish-output sock-stream))
+
+(defun send-string (sock str)
+  (format *debug-io* "About to send the string ~S~%" str)
+  (send-data sock
+             (trivial-utf-8:string-to-utf-8-bytes
+              str)))
+
+(defun recv-data (sock-stream)
+  (cl-netstring+:read-netstring-data sock-stream))
+
+(defun recv-string (sock-stream)
+  (let* ((data (recv-data sock-stream))
+         (str (trivial-utf-8:utf-8-bytes-to-string data)))
+    (format *debug-io* "Received string ~S~%" str)
+    str))
+
+;;; TODO: set up conditions for this layer, if necessary.
+(defun write-request (stream request)
+  "Marshal REQUEST and send it over STREAM."
+  (let* ((request-data (with-output-to-string (json:*json-output*)
+                         (marshall-request request))))
+    (send-string stream request-data)))
+
+(defun read-json-obj (stream)
+  "Read a message from STREAM and unmarshal it (returns the unmarshalled object)."
+  (json:decode-json-from-string (recv-string stream)))
 
 (defun make-result-future (id stream)
   "Return a (funcallable) future that produces a response with an id of ID from STREAM."
