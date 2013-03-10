@@ -99,11 +99,11 @@ before returning."
 
 (defun make-call-obj (service method parameters &key notification)
   (make-rpc-call :service service
-             :method method
-             :args parameters
-             :id (if notification
-                     nil
-                     (gensym "CALL"))))
+                 :method method
+                 :args parameters
+                 :id (if notification
+                         nil
+                         (gensym "CALL"))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (defun invoke-rpc-method (con service method args &key notification)
@@ -118,6 +118,8 @@ before returning."
         (make-result-future con (rpc-call-id call)))))
 
 (defmacro with-batch-calls ((stream &optional (batch-req nil batch-supplied-p)) &body body)
+  "Arrange for RPC calls in this block to collect their calls into one
+request, which will be sent at the end of the block."
   `(let ((*rpc-batch* ,(if batch-supplied-p batch-req '())))
      (declare (special *rpc-batch*))
      ,@body
@@ -125,23 +127,24 @@ before returning."
 
 ;; TODO: allow strings for method and service
 ;; TODO: add typespecs for return value and arguments
+;; Note: args is a list of lists, for providing typespecs in the future.
 (defmacro define-rpc-method ((method &optional service  &key notification) &body args)
   (check-type method symbol)
-  (check-type service symbol)
   (check-type service (or symbol null) "a SYMBOL or NIL")
+  (check-type notification boolean)
   (let* ((sock-symb (gensym "SOCK"))
          (service-symb (gensym "SERVICE"))
          (service-string (if service
-                             (format nil "~A-" (symbol-name service)) ""))
+                             (format nil "~A-" (symbol-name service))
+                             ""))
          (method-string (symbol-name method))
          (funcname (intern (concatenate 'string service-string method-string)))
          (arglist (mapcar #'first args)))
-
     `(defun ,funcname ,(cons sock-symb
                              (if (null service)
                                  (cons service-symb arglist)
                                  arglist))
        (invoke-rpc-method ,sock-symb ,(if service `(quote ,service)
-                                 service-symb)
-                 (quote ,method) ,(cons 'list arglist)
-                 ,@(if notification '(:notification t) nil)))))
+                                          service-symb)
+                          (quote ,method) (quote ,arglist)
+                          :notification ,notification))))
