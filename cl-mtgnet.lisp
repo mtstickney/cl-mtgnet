@@ -10,6 +10,28 @@
 (defun has-key (key map)
   (nth-value 1 (gethash key map)))
 
+(defclass rpc-connection ()
+  ((address :initarg :address :accessor connection-address)
+   (port :initarg :port :accessor connection-port)
+   (socket :accessor socket)
+   (result-bucket :initform (make-hash-table :test 'equal)
+                  :accessor result-bucket))
+  (:documentation "Class representing a connection to an RPC server"))
+
+(defmethod initialize-instance :after ((con rpc-connection) &rest initargs)
+  (setf (socket con) (usocket:socket-connect (connection-address con)
+                                             (connection-port con)
+                                             :element-type '(unsigned-byte 8))))
+
+(defgeneric connection-disconnect (con)
+  (:documentation "Disconnect the connection CON")
+  (:method ((con rpc-connection))
+    (usocket:socket-close (socket con))))
+
+(defgeneric read-response (con)
+  (:documentation "Read and unmarshall an RPC response from CON.")
+  (:method ((con rpc-connection))
+    (unmarshall-response (recv-string (usocket:socket-stream (sock con))))))
 ;; Storage for out-of-order responses
 (defvar *response-bucket* (make-hash-table :test 'equal))
 
@@ -17,6 +39,16 @@
 ;;; Bucket stuff for receiving responses
 (define-condition duplicate-result-id ()
   ((id)))
+
+(defgeneric add-result (con result)
+  (:documentation "Add an RPC result to the results received by CON.")
+  (:method ((con rpc-connection) (result rpc-result))
+    (let ((id (rpc-result-id result))
+          (bucket (result-bucket con)))
+      (when (hash-key id bucket)
+        (error 'duplicate-result-id :id id))
+      (setf (gethash id bucket) result)
+      (values))))
 
 (defun read-response-with-id (id sock-stream)
   "Read responses from SOCK-STREAM, adding results to
