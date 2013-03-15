@@ -5,11 +5,17 @@
 ;; TODO: RPC method calls are returning a whole result structure, not
 ;; the data/throwing an error.
 
+(defvar *default-encoder* #'json:encode-json)
+
 ;; Utility funcs
 (declaim (inline has-key))
 (defun has-key (key map)
   (check-type map hash-table)
   (nth-value 1 (gethash key map)))
+
+;; Stuff for type checks
+(deftype id () '(or symbol string))
+(deftype future () `(function))
 
 (defclass rpc-connection ()
   ((address :initarg :address :accessor connection-address)
@@ -33,7 +39,10 @@
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
-    (unmarshall-response (recv-string (usocket:socket-stream (socket con))))))
+    (let* ((stream (usocket:socket-stream (socket con)))
+           (str (trivial-utf-8:utf-8-bytes-to-string
+                 (cl-netstring+:read-netstring-data stream))))
+      (unmarshall-response str))))
 
 (defgeneric send-request (con request &key flush)
   (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
@@ -68,6 +77,8 @@
 ;; the stored condition (is it reasonable to re-throw the same
 ;; condition more than once? What if error handling has been done
 ;; in-between?).
+(declaim (ftype (function (rpc-connection id) rpc-result)
+                read-response-with-id))
 (defun read-result-with-id (con id)
   "Read responses from CON, storing results until a request containing
 a response with id ID arrives. Will process all results in a response
@@ -86,65 +97,98 @@ before returning."
     (prog1 (gethash id bucket)
       (remhash id bucket))))
 
+(declaim (ftype (function (rpc-connection id)
+                          future)
+                make-result-future))
 (defun make-result-future (con id)
   "Return a future that produces a result with an id of ID from CON."
   (lambda ()
-    (read-response-with-id con id)))
+    (read-result-with-id con id)))
 
+(declaim (ftype (function (future)
+                          rpc-result)
+                wait))
 (defun wait (future)
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
   (funcall future))
 
+(declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
+                make-call-obj))
 (defun make-call-obj (service method parameters &key notification)
-  (make-rpc-call :service service
-                 :method method
+  (make-rpc-call :service (symbol-name service)
+                 :method (symbol-name method)
                  :args parameters
                  :id (if notification
                          nil
                          (gensym "CALL"))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
+(declaim (ftype (function (rpc-connection id id list &key (:notification boolean))
+                          (values &optional future))
+                invoke-rpc-method))
 (defun invoke-rpc-method (con service method args &key notification)
   (let ((call (make-call-obj service method args)))
     (declare (special *rpc-batch*))
     ;; if *rpc-batch* is bound, just add the call to it
     (if (boundp '*rpc-batch*)
         (push call *rpc-batch*)
-        (write-request (socket con) (list call)))
+        (send-request con (list call)))
     (if notification
         (values)
         (make-result-future con (rpc-call-id call)))))
 
-(defmacro with-batch-calls ((stream &optional (batch-req nil batch-supplied-p)) &body body)
+(defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
 request, which will be sent at the end of the block."
   `(let ((*rpc-batch* ,(if batch-supplied-p batch-req '())))
      (declare (special *rpc-batch*))
      ,@body
-     (write-request ,stream (reverse  *rpc-batch*))))
+     (send-request ,con (reverse  *rpc-batch*))))
+
+(defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
+  (let ((encoder-var (if encoder-var encoder-var (gensym "ENCODER")))
+        (typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
+    `(destructuring-bind (,arg-var &optional
+                                   (,encoder-var *default-encoder*)
+                                   ,typespec-var)
+         ,arg-obj
+       (declare (ignore ,typespec-var))
+       ,@body)))
 
 ;; TODO: allow strings for method and service
 ;; TODO: add typespecs for return value and arguments
-;; Note: args is a list of lists, for providing typespecs in the future.
+;; Note: args is a list of lists, for providing typespecs in the
+;; future.
 (defmacro define-rpc-method ((method &optional service  &key notification) &body args)
   (check-type method symbol)
   (check-type service (or symbol null) "a SYMBOL or NIL")
   (check-type notification boolean)
-  (let* ((sock-symb (gensym "SOCK"))
-         (service-symb (gensym "SERVICE"))
-         (service-string (if service
-                             (format nil "~A-" (symbol-name service))
-                             ""))
-         (method-string (symbol-name method))
-         (funcname (intern (concatenate 'string service-string method-string)))
-         (arglist (mapcar #'first args)))
-    `(defun ,funcname ,(cons sock-symb
-                             (if (null service)
-                                 (cons service-symb arglist)
-                                 arglist))
-       (invoke-rpc-method ,sock-symb ,(if service `(quote ,service)
-                                          service-symb)
-                          (quote ,method) (quote ,arglist)
-                          :notification ,notification))))
+  (flet ((passed-arg-forms (args)
+           (loop for a in args
+              collect (destructuring-bind (arg &optional
+                                               (encoder *default-encoder*)
+                                               typespec)
+                          (declare (ignore typespec))
+                        `(list ,arg ,encoder)))))
+    (let* ((sock-symb (gensym "SOCK"))
+           (service-symb (gensym "SERVICE"))
+           (service-string (if service
+                               (format nil "~A-" (symbol-name service))
+                               ""))
+           (method-string (symbol-name method))
+           (funcname (intern (concatenate 'string service-string method-string)))
+           (arglist (mapcar #'first args))
+           (passed-args (mapcar (lambda (a) (bind-args (arg encoder)
+                                              (list arg encoder)))
+                                args)))
+      `(defun ,funcname ,(cons sock-symb
+                               (if (null service)
+                                   (cons service-symb arglist)
+                                   arglist))
+         (invoke-rpc-method ,sock-symb ,(if service `(quote ,service)
+                                            service-symb)
+                            (quote ,method)
+                            ,passed-args
+                            :notification ,notification)))))
