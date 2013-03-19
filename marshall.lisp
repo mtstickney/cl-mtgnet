@@ -7,41 +7,35 @@ encode VALUE."
     (funcall encoder value)))
 
 (defun serial-slot-p (s)
+  "Return T if S is a definition for a serialized slot, or NIL otherwise."
   (or (symbolp s)
       (and (listp s)
-           (destructuring-bind (name &key (marshall t) &allow-other-keys)
-               s
-             (declare (ignore name))
-             marshall))))
+           (getf s :marshall t))))
 
 (defun optional-slot-p (s)
+  "Return the optional type keyword for the slot-definition
+S (:read, :write, or :both), or NIL if S is not an optional slot."
   (and (listp s)
-       (destructuring-bind (name &key optional &allow-other-keys)
-           s
-         (declare (ignore name))
-         optional)))
+       (getf s :optional nil)))
 
-(defun slot-symbol (s)
-  (etypecase s
-    (symbol s)
-    (list (destructuring-bind (name &rest r) s
-            (declare (ignore r))
-            name))))
-
-(defun slot-optional-p (symbol optional-slots type)
-  (check-type symbol symbol)
-  (check-type optional-slots list)
+(defun slot-optional-type (slot type)
+  (check-type slot (or list symbol))
   (check-type type keyword)
-  (let ((cell (assoc symbol optional-slots)))
-    (and cell
+  (and (listp slot)
+       (let ((slot-type (optional-slot-p slot)))
          (ecase type
            (:write
-            (or (eq (cdr cell) :write)
-                (eq (cdr cell) :both)))
+            (or (eq slot-type :write)
+                (eq slot-type :both)))
            (:read
-            (or (eq (cdr cell) :read)
-                (eq (cdr cell) :both)))
-           (:both (eq (cdr cell) :both))))))
+            (or (eq slot-type :read)
+                (eq slot-type :both)))
+           (:both (eq slot-type :both))))))
+
+(defun slot-symbol (slot)
+  (if (symbolp slot)
+      slot
+      (car slot)))
 
 (defun cat-symbol (symbol &rest rest)
   (intern (format nil "~{~A~}" (mapcar #'symbol-name
@@ -52,24 +46,19 @@ encode VALUE."
   (let* ((slots (if (stringp (first body))
                     (first (cdr body))
                     (first body)))
-         (serialized-slots (mapcar #'slot-symbol
-                                   (remove-if-not #'serial-slot-p slots)))
-         (optional-slots (remove-if #'null (mapcar (lambda (s)
-                                                     (let ((optional (optional-slot-p s)))
-                                                       (if optional
-                                                           (cons (slot-symbol s) optional)
-                                                           nil)))
-                                                   slots)))
+         (serialized-slots (remove-if-not #'serial-slot-p slots))
          (struct-opts (if (stringp (first body))
                           (nthcdr 2  body)
-                          (cdr 1 body)))
+                          (nthcdr 1 body)))
+         (default-initargs (let ((cell (assoc :default-initargs struct-opts)))
+                             (if cell (cdr cell) nil)))
          (make-func (cat-symbol '#:make- name))
-         (ctor-func (intern (format)))
+         (ctor (cat-symbol '#:* make-func))
          (build-func (cat-symbol '#:build- name))
          (unmarshall-func (cat-symbol '#:unmarshall- name))
          (marshall-func (cat-symbol '#:marshall- name)))
     `(progn
-       (defstruct (,name (:constructor (intern (format nil "~A*" make-func))))
+       (defstruct (,name (:constructor ,ctor))
          ;; Optional docstring
          ,@(if (stringp (first body))
                (list (first body))
@@ -89,36 +78,55 @@ encode VALUE."
          (let ((arglist '()))
            ,@(loop for s in serialized-slots
                 collect `(let ((cell (assoc (json-key ',s) json-obj)))
-                           ,@(unless (slot-optional-p s optional-slots :read)
+                           ,@(unless (slot-optional-type s :read)
                                      `((unless cell
                                          (error 'invalid-json-obj :type ',name :json json-obj))))
                            (when cell
                              (setf (getf arglist ,(intern (symbol-name s) 'keyword))
                                    (cdr cell)))))
-           (apply #',make-func arglist)
-           ;; TODO: optionally call an initializer func here to fill
-           ;; in any non-serial slots
-           ))
+           (apply #',make-func arglist)))
        (defun ,unmarshall-func (json-string)
          (let ((json-obj (json:decode-json-from-string json-string)))
            (,build-func json-obj)))
        (defun ,marshall-func (obj)
          (json:with-object ()
-           ,@(flet ((accessor (field)
-                              (intern (format nil "~A-~A" name field))))
+           ,@(flet ((accessor (field) (cat-symbol name '#:- field)))
                    (loop for s in serialized-slots
                       collect (let ((encode-form `(encode-field ',s (,(accessor s) obj))))
-                                (if (slot-optional-p s optional-slots :write)
+                                (if (slot-optional-type s :write)
                                     `(when (,(accessor s) obj)
                                        ,encode-form)
-                                    encode-form)))))))))
+                                    encode-form))))))
+       (defun ,make-func (&rest initargs)
+         ;; Explicitly defined options take precedence, otherwise use :default-initargs
+         (let ((initargs (concatenate 'list initargs ,(cdr default-initargs))))
+               (apply #',ctor initargs))))))
 
 (define-json-obj rpc-call
   "A single method invocation."
-  (service :initial "" :type string :read-only t)
-  (method :initial "" :type string :read-only t)
-  (args :initial '() :type arglist :read-only t)
-  (id :initial nil :read-only t))
+  ((service :initial "" :type string :read-only t)
+   (method :initial "" :type string :read-only t)
+   (args :initial '() :type arglist :read-only t)
+   (id :initial nil :read-only t)))
+
+(define-json-obj rpc-result
+    "A single result from a method invocation."
+  ((data :initial '() :type cons :read-only t :marshall nil)
+   (warnings :initial '() :type list :read-only t)
+   (encoder :intiial #'json:encode-json :type function :marshall nil)
+   (id :optional :both))
+  (:default-initargs
+      :data 
+      )
+    )
+
+(defstruct rpc-result
+  "A single result from a method invocation."
+  ;; either (:DATA . data) or (:ERROR . error-obj)
+  (data '() :type cons)
+  (warnings '() :type list)
+  (encoder #'json:encode-json :type function)
+  (id))
 
 (defmacro encode-fields ((obj) &rest fields)
   "JSON-encode the FIELDS slots of OBJ. Expects to be run inside a
