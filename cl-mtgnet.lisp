@@ -68,7 +68,8 @@
 
 (defgeneric add-result (con result)
   (:documentation "Add an RPC result to the results received by CON.")
-  (:method ((con rpc-connection) (result rpc-result))
+  (:method ((con rpc-connection) result)
+    (check-type result rpc-result)
     (let ((id (rpc-result-id result))
           (bucket (result-bucket con)))
       (when (has-key id bucket)
