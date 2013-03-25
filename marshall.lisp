@@ -58,8 +58,8 @@ encode VALUE."
 ;; TODO: See if it's possible to generate docstrings for these things
 (defmacro define-json-obj (name &body body)
   (let* ((slots (if (stringp (first body))
-                    (first (cdr body))
-                    (first body)))
+                    (cdr body)
+                    body))
          (serialized-slots (mapcar #'slot-symbol
                                    (remove-if-not #'serial-slot-p slots)))
          (optional-slots (remove-if #'null (mapcar (lambda (s)
@@ -151,4 +151,3 @@ encode VALUE."
 (define-object-array rpc-request rpc-call)
 
 (define-object-array rpc-response rpc-result)
-
