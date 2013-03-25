@@ -115,3 +115,23 @@ encode VALUE."
   (args :initial '() :type arglist :read-only t)
   (id :initial nil :read-only t))
 
+(defmacro define-object-array (name type)
+  (let* ((predicate-name (cat-symbol name '#:-p))
+         (obj-predicate-name (cat-symbol type '#:-p)))
+    `(progn
+       (defun ,predicate-name (thing)
+         (and (listp thing)
+              (every #',obj-predicate-name thing)))
+       (deftype ,name () '(satisfies ,predicate-name))
+       (defun ,(cat-symbol '#:marshall- name) (obj)
+         (check-type obj ,name)
+         (json:with-array ()
+           (mapc #',(cat-symbol '#:marshall- type) obj)))
+       (defun ,(cat-symbol '#:build- name) (obj)
+         (check-type obj list)
+         (mapcar #',(cat-symbol '#:build- type) obj))
+       (defun ,(cat-symbol '#:unmarshall- name) (str)
+         (check-type str string)
+         (let ((obj (json:decode-json-from-string str)))
+           (,(cat-symbol '#:build- name) obj))))))
+
