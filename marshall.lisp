@@ -142,3 +142,7 @@ encode VALUE."
          (let ((obj (json:decode-json-from-string str)))
            (,(cat-symbol '#:build- name) obj))))))
 
+(define-object-array rpc-request rpc-call)
+
+(define-object-array rpc-response rpc-result)
+
