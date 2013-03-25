@@ -62,16 +62,12 @@ encode VALUE."
                                                            (cons (slot-symbol s) optional)
                                                            nil)))
                                                    slots)))
-         (struct-opts (if (stringp (first body))
-                          (nthcdr 2  body)
-                          (cdr 1 body)))
          (make-func (cat-symbol '#:make- name))
-         (ctor-func (intern (format)))
          (build-func (cat-symbol '#:build- name))
          (unmarshall-func (cat-symbol '#:unmarshall- name))
          (marshall-func (cat-symbol '#:marshall- name)))
     `(progn
-       (defstruct (,name (:constructor (intern (format nil "~A*" make-func))))
+       (defstruct ,name
          ;; Optional docstring
          ,@(if (stringp (first body))
                (list (first body))
@@ -97,10 +93,7 @@ encode VALUE."
                            (when cell
                              (setf (getf arglist ,(intern (symbol-name s) 'keyword))
                                    (cdr cell)))))
-           (apply #',make-func arglist)
-           ;; TODO: optionally call an initializer func here to fill
-           ;; in any non-serial slots
-           ))
+           (apply #',make-func arglist)))
        (defun ,unmarshall-func (json-string)
          (let ((json-obj (json:decode-json-from-string json-string)))
            (,build-func json-obj)))
