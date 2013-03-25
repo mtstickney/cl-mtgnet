@@ -113,7 +113,7 @@ encode VALUE."
   (service :initial "" :type string :read-only t)
   (method :initial "" :type string :read-only t)
   (args :initial '() :type list :read-only t)
-  (id :initial nil :read-only t))
+  (id :initial nil :optional :read :read-only t))
 
 (defmacro define-object-array (name type)
   (let* ((predicate-name (cat-symbol name '#:-p))
