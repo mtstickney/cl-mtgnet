@@ -47,14 +47,14 @@
     (let* ((stream (usocket:socket-stream (socket con)))
            (str (trivial-utf-8:utf-8-bytes-to-string
                  (cl-netstring+:read-netstring-data stream))))
-      (unmarshall-response str))))
+      (unmarshall-rpc-response str))))
 
 (defgeneric send-request (con request &key flush)
   (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
   (:method ((con rpc-connection) request &key (flush t))
     (check-type request rpc-request)
     (let* ((encoded-request (with-output-to-string (json:*json-output*)
-                             (marshall-request request)))
+                             (marshall-rpc-request request)))
            (request-data (trivial-utf-8:string-to-utf-8-bytes
                           encoded-request))
            (stream (usocket:socket-stream (socket con))))
