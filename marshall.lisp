@@ -115,6 +115,13 @@ encode VALUE."
   (args :initial '() :type list :read-only t)
   (id :initial nil :optional :read :read-only t))
 
+(define-json-obj rpc-result
+  "The result of an RPC method invocation."
+  (data :initial nil :optional :read-write :read-only t)
+  (error :initial nil :optional :read-write :read-only t)
+  (warnings :initial '() :optional :read-write :read-only t)
+  (id :intitial nil :optional :read-write :read-only t))
+
 (defmacro define-object-array (name type)
   (let* ((predicate-name (cat-symbol name '#:-p))
          (obj-predicate-name (cat-symbol type '#:-p)))
