@@ -6,44 +6,31 @@ encode VALUE."
   (json:as-object-member (field)
     (funcall encoder value)))
 
-(defun serial-slot-p (s)
-  (or (symbolp s)
-      (and (listp s)
-           (destructuring-bind (name &key (marshall t) &allow-other-keys)
-               s
-             (declare (ignore name))
-             marshall))))
 
-(defun optional-slot-p (s)
-  (and (listp s)
-       (destructuring-bind (name &key optional &allow-other-keys)
-           s
-         (declare (ignore name))
-         optional)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun serial-slot-p (s)
+    (or (symbolp s)
+        (and (listp s)
+             (destructuring-bind (name &key (marshall t) &allow-other-keys)
+                 s
+               (declare (ignore name))
+               marshall))))
 
-(defun slot-symbol (s)
-  (etypecase s
-    (symbol s)
-    (list (destructuring-bind (name &rest r) s
-            (declare (ignore r))
-            name))))
+  (defun optional-slot-p (s)
+    (and (listp s)
+         (destructuring-bind (name &key optional &allow-other-keys)
+             s
+           (declare (ignore name))
+           optional)))
 
-(defun slot-optional-p (symbol optional-slots type)
-  (check-type symbol symbol)
-  (check-type optional-slots list)
-  (check-type type keyword)
-  (let ((cell (assoc symbol optional-slots)))
-    (and cell
-         (ecase type
-           (:write
-            (or (eq (cdr cell) :write)
-                (eq (cdr cell) :both)))
-           (:read
-            (or (eq (cdr cell) :read)
-                (eq (cdr cell) :both)))
-           (:both (eq (cdr cell) :both))))))
+  (defun slot-symbol (s)
+    (etypecase s
+      (symbol s)
+      (list (destructuring-bind (name &rest r) s
+              (declare (ignore r))
+              name))))
 
-(defun cat-symbol (symbol &rest rest)
+  (defun cat-symbol (symbol &rest rest)
   (intern (format nil "~{~A~}" (mapcar #'symbol-name
                                        (cons symbol rest)))))
 
