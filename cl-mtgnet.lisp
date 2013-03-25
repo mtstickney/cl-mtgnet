@@ -31,6 +31,11 @@
                                              (connection-port con)
                                              :element-type '(unsigned-byte 8))))
 
+(declaim (inline connect))
+(defun connect (address port)
+  "Create and return an RPC-CONNECTION for ADDRESS and PORT."
+  (make-instance 'rpc-connection :address address :port port))
+
 (defgeneric connection-disconnect (con)
   (:documentation "Disconnect the connection CON")
   (:method ((con rpc-connection))
