@@ -6,6 +6,12 @@ encode VALUE."
   (json:as-object-member (field)
     (funcall encoder value)))
 
+(defun json-key (symb)
+  "Return the symbol produced by JSON encoding and decoding SYMB."
+  (funcall json::*identifier-name-to-key*
+           (json:decode-json-from-string
+            (funcall json::*json-identifier-name-to-lisp*
+                     (json:encode-json-to-string symb)))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun serial-slot-p (s)
