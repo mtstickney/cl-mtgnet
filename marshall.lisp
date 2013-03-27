@@ -137,6 +137,12 @@ encode VALUE."
   (args :initial '() :type list :read-only t)
   (id :initial nil :optional :read :read-only t))
 
+(define-json-obj rpc-error
+  "Error object contained in a failed rpc-result."
+  (message :initial "" :type string :read-only t)
+  (code :initial 0 :type integer :read-only t)
+  (data :initial nil :read-only t :optional :both))
+
 (define-json-obj rpc-result
   "The result of an RPC method invocation."
   (data :initial nil :optional :read-write :read-only t)
@@ -167,3 +173,5 @@ encode VALUE."
 (define-object-array rpc-request rpc-call)
 
 (define-object-array rpc-response rpc-result)
+
+(define-object-array rpc-warning-list rpc-error)
