@@ -146,8 +146,8 @@ encode VALUE."
 (define-json-obj rpc-result
   "The result of an RPC method invocation."
   (data :initial nil :optional :read-write :read-only t)
-  (error :initial nil :optional :read-write :read-only t)
-  (warnings :initial '() :optional :read-write :read-only t)
+  (error :initial nil :optional :read-write :read-only t :marshall-type rpc-error)
+  (warnings :initial '() :optional :read-write :read-only t :marshall-type rpc-warning-list)
   (id :intitial nil :optional :read-write :read-only t))
 
 (defmacro define-object-array (name type)
