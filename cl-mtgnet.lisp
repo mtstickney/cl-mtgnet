@@ -111,6 +111,8 @@ before returning."
   (lambda ()
     (read-result-with-id con id)))
 
+(define-condition remote-warning (warning) (msg code))
+(define-condition remote-error (error) (type msg code))
 (declaim (ftype (function (future)
                           rpc-result)
                 wait))
@@ -118,7 +120,19 @@ before returning."
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
-  (funcall future))
+  (let* ((result (funcall future))
+         (error (rpc-result-error result)))
+    (mapc (lambda (w) (warn 'remote-warning
+                            :msg (rpc-error-message w)
+                            :code (rpc-error-code w)))
+          (rpc-result-warnings result))
+    (when error
+      (let ((condition-type (rpc-error-data error)))
+        (error 'remote-error
+               :msg (rpc-error-message error)
+               :code (rpc-error-code error)
+               :type (if (typep condition-type 'string) type nil))))
+    (rpc-result-data result)))
 
 (declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
                 make-call-obj))
