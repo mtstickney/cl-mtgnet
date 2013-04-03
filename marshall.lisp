@@ -124,11 +124,7 @@ encode VALUE."
                                 (if (slot-optional-p s optional-slots :write)
                                     `(when (,(accessor s) obj)
                                        ,encode-form)
-                                    encode-form))))))
-       (defun ,make-func (&rest initargs)
-         ;; Explicitly defined options take precedence, otherwise use :default-initargs
-         (let ((initargs (concatenate 'list initargs ,(cdr default-initargs))))
-               (apply #',ctor initargs))))))
+                                    encode-form)))))))))
 
 (define-json-obj rpc-call
   "A single method invocation."
