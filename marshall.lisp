@@ -100,7 +100,7 @@ encode VALUE."
          (let ((arglist '()))
            ,@(loop for s in serialized-slots
                 collect `(let ((cell (assoc (json-key ',s) json-obj)))
-                           ,@(unless (slot-optional-type s :read)
+                           ,@(unless (slot-optional-p s optional-slots :read)
                                      `((unless cell
                                          (error 'invalid-json-obj :type ',name :json json-obj))))
                            (when cell
@@ -121,7 +121,7 @@ encode VALUE."
                                                                       (list `#',(cat-symbol '#:marshall-
                                                                                             (slot-marshall-type s)))
                                                                       '()))))
-                                (if (slot-optional-type s :write)
+                                (if (slot-optional-p s optional-slots :write)
                                     `(when (,(accessor s) obj)
                                        ,encode-form)
                                     encode-form))))))
