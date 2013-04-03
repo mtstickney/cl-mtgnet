@@ -10,7 +10,6 @@
 ;; Utility funcs
 (declaim (inline has-key))
 (defun has-key (key map)
-  (check-type map hash-table)
   (nth-value 1 (gethash key map)))
 
 ;; Stuff for type checks
