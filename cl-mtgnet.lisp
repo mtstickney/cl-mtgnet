@@ -130,7 +130,7 @@ before returning."
         (error 'remote-error
                :msg (rpc-error-message error)
                :code (rpc-error-code error)
-               :type (if (typep condition-type 'string) type nil))))
+               :type (if (typep condition-type 'string) condition-type nil))))
     (rpc-result-data result)))
 
 (declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
