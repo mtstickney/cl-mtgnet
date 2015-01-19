@@ -83,7 +83,7 @@
 ;; condition more than once? What if error handling has been done
 ;; in-between?).
 (declaim (ftype (function (rpc-connection id) rpc-result)
-                read-response-with-id))
+                read-result-with-id))
 (defun read-result-with-id (con id)
   "Read responses from CON, storing results until a request containing
 a response with id ID arrives. Will process all results in a response
