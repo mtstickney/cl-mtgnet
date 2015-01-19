@@ -112,9 +112,6 @@ before returning."
 
 (define-condition remote-warning (warning) (msg code))
 (define-condition remote-error (error) (type msg code))
-(declaim (ftype (function (future)
-                          rpc-result)
-                wait))
 (defun wait (future)
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
