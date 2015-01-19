@@ -189,7 +189,6 @@ request, which will be sent at the end of the block."
               collect (destructuring-bind (arg &optional
                                                (encoder *default-encoder*)
                                                typespec)
-                          (declare (ignore typespec))
                         `(list ,arg ,encoder)))))
     (let* ((sock-symb (gensym "SOCK"))
            (service-symb (gensym "SERVICE"))
