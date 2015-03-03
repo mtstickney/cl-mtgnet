@@ -1,10 +1,10 @@
-;;;; cl-rpc.asd
+;;;; cl-mtgnet.asd
 
 (asdf:defsystem #:cl-mtgnet
   :serial t
-  :description "Describe cl-rpc here"
-  :author "Your Name <your.name@example.com>"
-  :license "Specify license here"
+  :description "Client library for the MTGNet RPC protocol."
+  :author "Matthew Stickney <mtstickney@gmail.com>"
+  :license "MIT"
   :depends-on (#:trivial-utf-8
                #:cl-json
                #:cl-netstring+
