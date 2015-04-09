@@ -3,6 +3,7 @@
 (defpackage #:cl-mtgnet
   (:use #:cl)
   (:nicknames #:mtgnet)
+  ;; Basic API
   (:export #:define-rpc-method
            #:with-batch-calls
            #:wait
@@ -11,4 +12,64 @@
            #:remote-warning-code
            #:remote-error-type
            #:remote-error-msg
-           #:remote-error-code))
+           #:remote-error-code)
+  ;; Extension points
+  (:export #:rpc-connection
+           #:connection-disconnect
+           #:read-response
+           #:send-request
+           #:add-result)
+  ;;; Things that extensions might use.
+  ;; Standard objects.
+  (:export #:rpc-call-p
+           #:rpc-call-service
+           #:rpc-call-id
+           #:rpc-call-method
+           #:rpc-call-args
+           #:build-rpc-call
+           #:make-rpc-call
+           #:marshall-rpc-call
+           #:unmarshall-rpc-call
+
+           #:rpc-error-p
+           #:rpc-error-message
+           #:rpc-error-code
+           #:rpc-error-data
+           #:build-rpc-error
+           #:make-rpc-error
+           #:marshall-rpc-error
+           #:unmarshall-rpc-error
+
+           #:rpc-result
+           #:rpc-result-p
+           #:rpc-result-data
+           #:rpc-result-error
+           #:rpc-result-warnings
+           #:rpc-result-id
+           #:build-rpc-result
+           #:make-rpc-result
+           #:marshall-rpc-result
+           #:unmarshall-rpc-result
+
+           #:rpc-request
+           #:rpc-request-p
+           #:build-rpc-request
+           #:marshall-rpc-request
+           #:unmarshall-rpc-request
+
+           #:rpc-response
+           #:rpc-response-p
+           #:build-rpc-response
+           #:marshall-rpc-response
+           #:unmarshall-rpc-response
+
+           #:rpc-warning-list
+           #:rpc-warning-list-p
+           #:build-rpc-warning-list
+           #:marshall-rpc-warning-list
+           #:unmarshall-rpc-warning-list)
+  ;; Utility functions
+  (:export #:make-result-future
+           #:make-call-obj
+           #:invoke-rpc-method
+           #:with-batch-calls))
