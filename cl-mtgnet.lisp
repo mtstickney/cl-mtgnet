@@ -24,19 +24,22 @@
                   :accessor result-bucket))
   (:documentation "Class representing a connection to an RPC server"))
 
-(defmethod initialize-instance :after ((con rpc-connection) &rest initargs)
-  (declare (ignore initargs))
-  (setf (socket con) (usocket:socket-connect (connection-address con)
-                                             (connection-port con)
-                                             :element-type '(unsigned-byte 8))))
-
 (declaim (inline connect))
 (defun connect (address port)
   "Create and return an RPC-CONNECTION for ADDRESS and PORT."
-  (make-instance 'rpc-connection :address address :port port))
+  (let ((con (make-instance 'rpc-connection :address address :port port)))
+    (connection-connect con)
+    con))
+
+(defgeneric connection-connect (con)
+  (:documentation "Connect CON to the remote end.")
+  (:method ((con rpc-connection))
+    (setf (socket con) (usocket:socket-connect (connection-address con)
+                                               (connection-port con)
+                                               :element-type '(unsigned-byte 8)))))
 
 (defgeneric connection-disconnect (con)
-  (:documentation "Disconnect the connection CON")
+  (:documentation "Disconnect the connection CON.")
   (:method ((con rpc-connection))
     (usocket:socket-close (socket con))))
 
