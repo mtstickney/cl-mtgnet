@@ -4,7 +4,8 @@
   (:use #:cl)
   (:nicknames #:mtgnet)
   ;; Basic API
-  (:export #:define-rpc-method
+  (:export #:connect
+           #:define-rpc-method
            #:with-batch-calls
            #:wait
            #:remote-warning
