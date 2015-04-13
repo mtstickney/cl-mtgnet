@@ -15,6 +15,7 @@
            #:remote-error-code)
   ;; Extension points
   (:export #:rpc-connection
+           #:connection-connect
            #:connection-disconnect
            #:read-response
            #:send-request
