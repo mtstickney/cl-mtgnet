@@ -6,6 +6,7 @@
 ;; the data/throwing an error.
 
 (defvar *default-encoder* #'json:encode-json)
+(defvar *default-connection-class* 'rpc-connection)
 
 ;; Utility funcs
 (declaim (inline has-key))
@@ -25,9 +26,9 @@
   (:documentation "Class representing a connection to an RPC server"))
 
 (declaim (inline connect))
-(defun connect (address port)
+(defun connect (address port &optional (connection-class *default-connection-class*))
   "Create and return an RPC-CONNECTION for ADDRESS and PORT."
-  (let ((con (make-instance 'rpc-connection :address address :port port)))
+  (let ((con (make-instance connection-class :address address :port port)))
     (connection-connect con)
     con))
 

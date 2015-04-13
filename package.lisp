@@ -5,6 +5,7 @@
   (:nicknames #:mtgnet)
   ;; Basic API
   (:export #:connect
+           #:*default-connection-class*
            #:define-rpc-method
            #:with-batch-calls
            #:wait
