@@ -4,6 +4,7 @@
   (:use #:cl)
   ;; Basic API
   (:export #:connect
+           #:*default-encoder*
            #:*default-connection-class*
            #:define-rpc-method
            #:with-batch-calls
@@ -86,6 +87,7 @@
   (:nicknames #:mtgnet)
   (:import-from #:mtgnet-sys
                 #:connect
+                #:*default-encoder*
                 #:*default-connection-class*
                 #:define-rpc-method
                 #:with-batch-calls
