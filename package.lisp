@@ -18,6 +18,8 @@
   (:export #:rpc-connection
            #:connection-connect
            #:connection-disconnect
+           #:data-input-stream
+           #:data-output-stream
            #:read-response
            #:send-request
            #:add-result)
