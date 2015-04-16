@@ -1,6 +1,6 @@
 ;;;; cl-mtgnet.lisp
 
-(in-package #:cl-mtgnet)
+(in-package #:mtgnet-sys)
 
 ;; TODO: RPC method calls are returning a whole result structure, not
 ;; the data/throwing an error.

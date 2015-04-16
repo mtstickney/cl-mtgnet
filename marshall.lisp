@@ -1,4 +1,4 @@
-(in-package #:cl-mtgnet)
+(in-package #:mtgnet-sys)
 
 (defun encode-field (field value &optional (encoder #'json:encode-json))
   "Encode VALUE as an object field named FIELD, using ENCODER to

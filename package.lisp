@@ -1,8 +1,7 @@
 ;;;; package.lisp
 
-(defpackage #:cl-mtgnet
+(defpackage #:mtgnet-sys
   (:use #:cl)
-  (:nicknames #:mtgnet)
   ;; Basic API
   (:export #:connect
            #:*default-connection-class*
@@ -76,7 +75,34 @@
            #:make-call-obj
            #:invoke-rpc-method
            #:with-batch-calls
-
            #:connection-address
            #:connection-port
            #:socket))
+
+(defpackage #:cl-mtgnet
+  (:use #:cl)
+  (:nicknames #:mtgnet)
+  (:import-from #:mtgnet-sys
+                #:connect
+                #:*default-connection-class*
+                #:define-rpc-method
+                #:with-batch-calls
+                #:wait
+                #:remote-warning
+                #:remote-warning-msg
+                #:remote-warning-code
+                #:remote-error-type
+                #:remote-error-msg
+                #:remote-error-code)
+  (:export #:connect
+           #:*default-encoder
+           #:*default-connection-class*
+           #:define-rpc-method
+           #:with-batch-calls
+           #:wait
+           #:remote-warning
+           #:remote-warning-msg
+           #:remote-warning-code
+           #:remote-error-type
+           #:remote-error-msg
+           #:remote-error-code))
