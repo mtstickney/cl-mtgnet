@@ -44,10 +44,20 @@
   (:method ((con rpc-connection))
     (usocket:socket-close (socket con))))
 
+(defgeneric data-input-stream (con)
+  (:documentation "Return a input stream to read data from CON.")
+  (:method ((con rpc-connection))
+    (usocket:socket-stream (socket con))))
+
+(defgeneric data-output-stream (con)
+  (:documentation "Return an output stream to send data to CON.")
+  (:method ((con rpc-connection))
+    (usocket:socket-stream (socket con))))
+
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
-    (let* ((stream (usocket:socket-stream (socket con)))
+    (let* ((stream (data-input-stream con))
            (str (trivial-utf-8:utf-8-bytes-to-string
                  (cl-netstring+:read-netstring-data stream))))
       (unmarshall-rpc-response str))))
@@ -60,7 +70,7 @@
                              (marshall-rpc-request request)))
            (request-data (trivial-utf-8:string-to-utf-8-bytes
                           encoded-request))
-           (stream (usocket:socket-stream (socket con))))
+           (stream (data-output-stream con)))
       (cl-netstring+:write-netstring-bytes stream
                                            request-data)
       (when flush
