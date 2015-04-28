@@ -60,6 +60,14 @@ encode VALUE."
                   (eq (cdr cell) :read-write)))
              (:read-write (eq (cdr cell) :read-write)))))))
 
+(define-condition invalid-json-obj (error)
+  ((type :initarg :type :accessor obj-type)
+   (json :initarg :json :accessor obj-json))
+  (:report (lambda (c s)
+             (format s "Invalid json data for object of type ~S: ~S"
+                     (obj-type c)
+                     (obj-json c)))))
+
 ;; TODO: handle packages on e.g. type symbols appropriately (I'm
 ;; looking at you, :marshall-type)
 ;; TODO: See if it's possible to generate docstrings for these things

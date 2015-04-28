@@ -14,7 +14,8 @@
            #:remote-warning-code
            #:remote-error-type
            #:remote-error-msg
-           #:remote-error-code)
+           #:remote-error-code
+           #:invalid-json-obj)
   ;; Extension points
   (:export #:rpc-connection
            #:connection-connect
@@ -97,7 +98,8 @@
                 #:remote-warning-code
                 #:remote-error-type
                 #:remote-error-msg
-                #:remote-error-code)
+                #:remote-error-code
+                #:invalid-json-obj)
   (:export #:connect
            #:*default-encoder
            #:*default-connection-class*
@@ -109,4 +111,5 @@
            #:remote-warning-code
            #:remote-error-type
            #:remote-error-msg
-           #:remote-error-code))
+           #:remote-error-code
+           #:invalid-json-obj))
