@@ -181,7 +181,7 @@ request, which will be sent at the end of the block."
   (let ((encoder-var (if encoder-var encoder-var (gensym "ENCODER")))
         (typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
     `(destructuring-bind (,arg-var &optional
-                                   (,encoder-var *default-encoder*)
+                                   (,encoder-var '*default-encoder*)
                                    ,typespec-var)
          ,arg-obj
        (declare (ignore ,typespec-var))
@@ -210,9 +210,9 @@ request, which will be sent at the end of the block."
            (method-string (symbol-name method))
            (funcname (intern (concatenate 'string service-string method-string)))
            (arglist (mapcar #'first args))
-           (passed-args (mapcar (lambda (a) (bind-args (arg encoder) a
-                                              (list arg encoder)))
-                                args)))
+           (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
+                                                          `(list ,arg ,encoder)))
+                                            args))))
       `(defun ,funcname ,(cons con-symb
                                (if (null service)
                                    (cons service-symb arglist)
