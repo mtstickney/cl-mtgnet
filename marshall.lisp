@@ -136,7 +136,7 @@ encode VALUE."
   "Error object contained in a failed rpc-result."
   (message :initial "" :type string :read-only t)
   (code :initial 0 :type integer :read-only t)
-  (data :initial nil :read-only t :optional :both))
+  (data :initial nil :read-only t :optional :read-write))
 
 (define-json-obj rpc-result
   "The result of an RPC method invocation."
