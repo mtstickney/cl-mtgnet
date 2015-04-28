@@ -159,7 +159,7 @@ before returning."
                           (values &optional future))
                 invoke-rpc-method))
 (defun invoke-rpc-method (con service method args &key notification)
-  (let ((call (make-call-obj service method args)))
+  (let ((call (make-call-obj service method args :notification notification)))
     (declare (special *rpc-batch*))
     ;; if *rpc-batch* is bound, just add the call to it
     (if (boundp '*rpc-batch*)
