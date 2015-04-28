@@ -166,7 +166,8 @@ before returning."
         (push call *rpc-batch*)
         (send-request con (list call)))
     (if notification
-        (values)
+        ;; trivial future, completes immediately with no values.
+        (lambda () (values))
         (make-result-future con (rpc-call-id call)))))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
