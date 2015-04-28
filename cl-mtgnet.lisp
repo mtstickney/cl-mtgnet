@@ -154,8 +154,8 @@ before returning."
 (declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
                 make-call-obj))
 (defun make-call-obj (service method parameters &key notification)
-  (make-rpc-call :service (symbol-name service)
-                 :method (symbol-name method)
+  (make-rpc-call :service (if (typep service 'string) service (symbol-name service))
+                 :method (if (typep method 'string) method (symbol-name method))
                  :args parameters
                  :id (if notification
                          nil
@@ -204,13 +204,12 @@ request, which will be sent at the end of the block."
        (declare (ignore ,typespec-var))
        ,@body)))
 
-;; TODO: allow strings for method and service
 ;; TODO: add typespecs for return value and arguments
 ;; Note: args is a list of lists, for providing typespecs in the
 ;; future.
 (defmacro define-rpc-method ((method &optional service  &key notification) &body args)
-  (check-type method symbol)
-  (check-type service (or symbol null) "a SYMBOL or NIL")
+  (check-type method (or symbol string))
+  (check-type service (or symbol string null) "a symbol, string, or NIL")
   (check-type notification boolean)
   (flet ((passed-arg-forms (args)
            (loop for a in args
@@ -221,11 +220,14 @@ request, which will be sent at the end of the block."
                         `(list ,arg ,encoder)))))
     (let* ((con-symb (gensym "CON"))
            (service-symb (gensym "SERVICE"))
-           (service-string (if service
-                               (format nil "~A-" (symbol-name service))
-                               ""))
-           (method-string (symbol-name method))
-           (funcname (intern (concatenate 'string service-string method-string)))
+           (service-string (etypecase service
+                             (null "")
+                             (symbol (format nil "~A-" (symbol-name service)))
+                             (string (format nil "~A-" service))))
+           (method-string (etypecase method
+                            (string method)
+                            (symbol (symbol-name method))))
+           (funcname (intern (string-upcase (concatenate 'string service-string method-string))))
            (arglist (mapcar #'first args))
            (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
                                                           `(list ,arg ,encoder)))
@@ -234,8 +236,12 @@ request, which will be sent at the end of the block."
                                (if (null service)
                                    (cons service-symb arglist)
                                    arglist))
-         (invoke-rpc-method ,con-symb ,(if service `(quote ,service)
-                                            service-symb)
-                            (quote ,method)
+         (invoke-rpc-method ,con-symb ,(etypecase service
+                                                  (null service-symb)
+                                                  (symbol `(quote ,service))
+                                                  (string service))
+                            ,(if (symbolp method)
+                                 `(quote ,method)
+                                 method)
                             ,passed-args
                             :notification ,notification)))))
