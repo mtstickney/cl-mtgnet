@@ -202,7 +202,7 @@ request, which will be sent at the end of the block."
                                                typespec)
                           a
                         `(list ,arg ,encoder)))))
-    (let* ((sock-symb (gensym "SOCK"))
+    (let* ((con-symb (gensym "CON"))
            (service-symb (gensym "SERVICE"))
            (service-string (if service
                                (format nil "~A-" (symbol-name service))
@@ -213,11 +213,11 @@ request, which will be sent at the end of the block."
            (passed-args (mapcar (lambda (a) (bind-args (arg encoder) a
                                               (list arg encoder)))
                                 args)))
-      `(defun ,funcname ,(cons sock-symb
+      `(defun ,funcname ,(cons con-symb
                                (if (null service)
                                    (cons service-symb arglist)
                                    arglist))
-         (invoke-rpc-method ,sock-symb ,(if service `(quote ,service)
+         (invoke-rpc-method ,con-symb ,(if service `(quote ,service)
                                             service-symb)
                             (quote ,method)
                             ,passed-args
