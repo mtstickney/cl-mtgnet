@@ -76,6 +76,7 @@
            #:unmarshall-rpc-warning-list)
   ;; Utility functions
   (:export #:make-result-future
+           #:rpc-call-future
            #:make-call-obj
            #:invoke-rpc-method
            #:with-batch-calls

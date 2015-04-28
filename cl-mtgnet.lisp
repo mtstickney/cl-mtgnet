@@ -154,6 +154,14 @@ before returning."
                          nil
                          (gensym "CALL"))))
 
+(defun rpc-call-future (con rpc-call)
+  (check-type rpc-call rpc-call)
+  (let ((id (rpc-call-id rpc-call)))
+    (if id
+        (make-result-future con id)
+        ;; null id -> notification, return a trivial future.
+        (lambda () (values)))))
+
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (declaim (ftype (function (rpc-connection id id list &key (:notification boolean))
                           (values &optional future))
@@ -165,10 +173,7 @@ before returning."
     (if (boundp '*rpc-batch*)
         (push call *rpc-batch*)
         (send-request con (list call)))
-    (if notification
-        ;; trivial future, completes immediately with no values.
-        (lambda () (values))
-        (make-result-future con (rpc-call-id call)))))
+    (rpc-call-future con call)))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
