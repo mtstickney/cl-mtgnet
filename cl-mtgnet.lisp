@@ -124,6 +124,13 @@ before returning."
   (lambda ()
     (read-result-with-id con id)))
 
+(defun all-futures* (futures)
+  (lambda ()
+    (mapcar #'wait futures)))
+
+(defun all-futures (&rest futures)
+  (all-futures* futures))
+
 (define-condition remote-warning (warning) (msg code))
 (define-condition remote-error (error) (type msg code))
 (defun wait (future)
