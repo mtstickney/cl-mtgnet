@@ -122,7 +122,19 @@ before returning."
 (defun make-result-future (con id)
   "Return a future that produces a result with an id of ID from CON."
   (lambda ()
-    (read-result-with-id con id)))
+    (let* ((result (read-result-with-id con id))
+           (error (rpc-result-error result)))
+      (mapc (lambda (w) (warn 'remote-warning
+                              :msg (rpc-error-message w)
+                              :code (rpc-error-code w)))
+            (rpc-result-warnings result))
+      (when error
+        (let ((condition-type (rpc-error-data error)))
+          (error 'remote-error
+                 :msg (rpc-error-message error)
+                 :code (rpc-error-code error)
+                 :type (if (typep condition-type 'string) condition-type nil))))
+      (rpc-result-data result))))
 
 (defun all-futures* (futures)
   (lambda ()
@@ -137,19 +149,7 @@ before returning."
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
-  (let* ((result (funcall future))
-         (error (rpc-result-error result)))
-    (mapc (lambda (w) (warn 'remote-warning
-                            :msg (rpc-error-message w)
-                            :code (rpc-error-code w)))
-          (rpc-result-warnings result))
-    (when error
-      (let ((condition-type (rpc-error-data error)))
-        (error 'remote-error
-               :msg (rpc-error-message error)
-               :code (rpc-error-code error)
-               :type (if (typep condition-type 'string) condition-type nil))))
-    (rpc-result-data result)))
+  (funcall future))
 
 (declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
                 make-call-obj))
