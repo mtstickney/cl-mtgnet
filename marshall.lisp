@@ -24,10 +24,7 @@ encode VALUE."
 
   (defun optional-slot-p (s)
     (and (listp s)
-         (destructuring-bind (name &key optional &allow-other-keys)
-             s
-           (declare (ignore name))
-           optional)))
+         (getf (rest s) :optional)))
 
   (defun slot-symbol (s)
     (etypecase s
