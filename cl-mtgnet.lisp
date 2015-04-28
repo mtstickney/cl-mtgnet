@@ -190,7 +190,9 @@ request, which will be sent at the end of the block."
      ,@body
      (let ((batch (reverse *rpc-batch*)))
        (send-request ,con batch)
-       (all-futures* (mapcar #'rpc-call-future batch)))))
+       (all-futures* (mapcar (lambda (call)
+                               (rpc-call-future ,con call))
+                             batch)))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
   (let ((encoder-var (if encoder-var encoder-var (gensym "ENCODER")))
