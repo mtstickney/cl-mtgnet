@@ -108,7 +108,7 @@ before returning."
                 id))
         (bucket (result-bucket con)))
     (loop until (has-key id bucket)
-       with response = (read-response con)
+       for response = (read-response con)
        ;; a response is a list of results
        do (mapc #'(lambda (r) (add-result con r))
                 response))
