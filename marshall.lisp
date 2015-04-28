@@ -72,12 +72,6 @@ encode VALUE."
                     (cdr body)
                     body))
          (serialized-slots (remove-if-not #'serial-slot-p slots))
-         (optional-slots (remove-if #'null (mapcar (lambda (s)
-                                                     (let ((optional (optional-slot-p s)))
-                                                       (if optional
-                                                           (cons (slot-symbol s) optional)
-                                                           nil)))
-                                                   slots)))
          (make-func (cat-symbol '#:make- name))
          (build-func (cat-symbol '#:build- name))
          (unmarshall-func (cat-symbol '#:unmarshall- name))
