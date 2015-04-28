@@ -188,7 +188,9 @@ request, which will be sent at the end of the block."
   `(let ((*rpc-batch* ,(if batch-supplied-p batch-req '())))
      (declare (special *rpc-batch*))
      ,@body
-     (send-request ,con (reverse  *rpc-batch*))))
+     (let ((batch (reverse *rpc-batch*)))
+       (send-request ,con batch)
+       (all-futures* (mapcar #'rpc-call-future batch)))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
   (let ((encoder-var (if encoder-var encoder-var (gensym "ENCODER")))
