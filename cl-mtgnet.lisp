@@ -195,8 +195,7 @@ request, which will be sent at the end of the block."
                              batch)))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
-  (let ((encoder-var (if encoder-var encoder-var (gensym "ENCODER")))
-        (typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
+  (let ((typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
     `(destructuring-bind (,arg-var &optional
                                    (,encoder-var '*default-encoder*)
                                    ,typespec-var)
