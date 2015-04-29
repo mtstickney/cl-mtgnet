@@ -125,6 +125,10 @@ encode VALUE."
                                        ,encode-form)
                                     encode-form)))))))))
 
+;; TODO: deal with the whole encoder thing (might want have
+;; marshalling types set for args rather than decoders so we can
+;; control encoding too. Might also want to switch to real types and
+;; use methods instead of this symbol-concatenation business.
 (defun marshall-arg-list (args)
   (check-type args list)
   (json:with-array ()
