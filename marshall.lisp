@@ -125,11 +125,22 @@ encode VALUE."
                                        ,encode-form)
                                     encode-form)))))))))
 
+(defun marshall-arg-list (args)
+  (check-type args list)
+  (json:with-array ()
+    (mapc (lambda (v)
+            (json:as-array-member ()
+              (funcall *default-encoder* v)))
+          args)))
+
+(defun build-arg-list (list)
+  list)
+
 (define-json-obj rpc-call
   "A single method invocation."
   (service :initial "" :type string :read-only t)
   (method :initial "" :type string :read-only t)
-  (args :initial '() :type list :read-only t)
+  (args :initial '() :type list :read-only t :marshall-type arg-list)
   (id :initial nil :optional :read :read-only t))
 
 (define-json-obj rpc-error
