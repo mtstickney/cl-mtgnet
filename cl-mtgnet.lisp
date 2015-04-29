@@ -210,37 +210,30 @@ request, which will be sent at the end of the block."
   (check-type method (or symbol string))
   (check-type service (or symbol string null) "a symbol, string, or NIL")
   (check-type notification boolean)
-  (flet ((passed-arg-forms (args)
-           (loop for a in args
-              collect (destructuring-bind (arg &optional
-                                               (encoder *default-encoder*)
-                                               typespec)
-                          a
-                        `(list ,arg ,encoder)))))
-    (let* ((con-symb (gensym "CON"))
-           (service-symb (gensym "SERVICE"))
-           (service-string (etypecase service
-                             (null "")
-                             (symbol (format nil "~A-" (symbol-name service)))
-                             (string (format nil "~A-" service))))
-           (method-string (etypecase method
-                            (string method)
-                            (symbol (symbol-name method))))
-           (funcname (intern (string-upcase (concatenate 'string service-string method-string))))
-           (arglist (mapcar #'first args))
-           (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
-                                                          `(list ,arg ,encoder)))
-                                            args))))
-      `(defun ,funcname ,(cons con-symb
-                               (if (null service)
-                                   (cons service-symb arglist)
-                                   arglist))
-         (invoke-rpc-method ,con-symb ,(etypecase service
-                                                  (null service-symb)
-                                                  (symbol `(quote ,service))
-                                                  (string service))
-                            ,(if (symbolp method)
-                                 `(quote ,method)
-                                 method)
-                            ,passed-args
-                            :notification ,notification)))))
+  (let* ((con-symb (gensym "CON"))
+         (service-symb (gensym "SERVICE"))
+         (service-string (etypecase service
+                           (null "")
+                           (symbol (format nil "~A-" (symbol-name service)))
+                           (string (format nil "~A-" service))))
+         (method-string (etypecase method
+                          (string method)
+                          (symbol (symbol-name method))))
+         (funcname (intern (string-upcase (concatenate 'string service-string method-string))))
+         (arglist (mapcar #'first args))
+         (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
+                                                        `(list ,arg ,encoder)))
+                                          args))))
+    `(defun ,funcname ,(cons con-symb
+                             (if (null service)
+                                 (cons service-symb arglist)
+                                 arglist))
+       (invoke-rpc-method ,con-symb ,(etypecase service
+                                                (null service-symb)
+                                                (symbol `(quote ,service))
+                                                (string service))
+                          ,(if (symbolp method)
+                               `(quote ,method)
+                               method)
+                          ,passed-args
+                          :notification ,notification))))
