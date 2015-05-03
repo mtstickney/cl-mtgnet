@@ -11,4 +11,5 @@
                #:usocket)
   :components ((:file "package")
                (:file "marshall")
+               (:file "transport")
                (:file "cl-mtgnet")))
