@@ -8,8 +8,10 @@
   :depends-on (#:trivial-utf-8
                #:cl-json
                #:cl-netstring+
+               #:blackbird
                #:usocket)
   :components ((:file "package")
                (:file "marshall")
                (:file "transport")
+               (:file "framer")
                (:file "cl-mtgnet")))
