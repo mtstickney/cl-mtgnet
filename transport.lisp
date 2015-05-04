@@ -76,7 +76,7 @@
    (socket :initarg :socket :accessor socket)
    (element-type :initarg :element-type :accessor tcp-element-type))
   (:default-initargs :socket nil)
-  (:documentation "Class for transporting messages over a TCP socket."))
+  (:documentation "Class for transporting data over a TCP socket."))
 
 (defclass synchronous-tcp-byte-transport (synchronous-tcp-transport)
   ()
