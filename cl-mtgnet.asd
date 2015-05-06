@@ -9,6 +9,7 @@
                #:cl-json
                #:cl-netstring+
                #:blackbird
+               #:cl-async
                #:usocket)
   :components ((:file "package")
                (:file "marshall")
