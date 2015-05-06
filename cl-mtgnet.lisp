@@ -25,13 +25,6 @@
                   :accessor result-bucket))
   (:documentation "Class representing a connection to an RPC server"))
 
-(declaim (inline connect))
-(defun connect (address port &optional (connection-class *default-connection-class*))
-  "Create and return an RPC-CONNECTION for ADDRESS and PORT."
-  (let ((con (make-instance connection-class :address address :port port)))
-    (connection-connect con)
-    con))
-
 (defgeneric connection-connect (con)
   (:documentation "Connect CON to the remote end.")
   (:method ((con rpc-connection))
