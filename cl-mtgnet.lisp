@@ -109,6 +109,9 @@ before returning."
     (prog1 (gethash id bucket)
       (remhash id bucket))))
 
+(define-condition remote-warning (warning) (msg code))
+(define-condition remote-error (error) (type msg code))
+
 (declaim (ftype (function (rpc-connection id)
                           future)
                 make-result-future))
@@ -136,8 +139,6 @@ before returning."
 (defun all-futures (&rest futures)
   (all-futures* futures))
 
-(define-condition remote-warning (warning) (msg code))
-(define-condition remote-error (error) (type msg code))
 (defun wait (future)
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
