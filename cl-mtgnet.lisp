@@ -25,14 +25,14 @@
                   :accessor result-bucket))
   (:documentation "Class representing a connection to an RPC server"))
 
-(defgeneric connection-connect (con)
+(defgeneric connect (con)
   (:documentation "Connect CON to the remote end.")
   (:method ((con rpc-connection))
     (setf (socket con) (usocket:socket-connect (connection-address con)
                                                (connection-port con)
                                                :element-type '(unsigned-byte 8)))))
 
-(defgeneric connection-disconnect (con)
+(defgeneric disconnect (con)
   (:documentation "Disconnect the connection CON.")
   (:method ((con rpc-connection))
     (usocket:socket-close (socket con))))

@@ -3,8 +3,7 @@
 (defpackage #:mtgnet-sys
   (:use #:cl)
   ;; Basic API
-  (:export #:connect
-           #:*default-encoder*
+  (:export #:*default-encoder*
            #:*default-connection-class*
            #:define-rpc-method
            #:with-batch-calls
@@ -18,8 +17,8 @@
            #:invalid-json-obj)
   ;; Extension points
   (:export #:rpc-connection
-           #:connection-connect
-           #:connection-disconnect
+           #:connect
+           #:disconnect
            #:data-input-stream
            #:data-output-stream
            #:read-response
@@ -91,6 +90,7 @@
   (:nicknames #:mtgnet)
   (:import-from #:mtgnet-sys
                 #:connect
+                #:disconnect
                 #:*default-encoder*
                 #:*default-connection-class*
                 #:define-rpc-method
@@ -104,6 +104,7 @@
                 #:remote-error-code
                 #:invalid-json-obj)
   (:export #:connect
+           #:disconnect
            #:*default-encoder
            #:*default-connection-class*
            #:define-rpc-method
