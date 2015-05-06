@@ -52,7 +52,7 @@
                                  ;; Trigger the chain with a
                                  ;; non-promise value.
                                  :initial-value nil))
-                    (nil (transport-write transport end)))
+                    (nil (transport-write transport end :flush t)))
     ;; All done
     (values)))
 
