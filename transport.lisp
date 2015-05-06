@@ -118,6 +118,12 @@
       (error 'end-of-file :stream stream))
     (values)))
 
+(defmethod transport-write ((transport synchronous-tcp-transport) data &key flush)
+  (let ((stream (usocket:socket-stream (socket transport))))
+    (write-sequence data stream)
+    (when flush
+      (finish-output stream))))
+
 (defclass asynchronous-tcp-transport (asynchronous-transport)
   ((address :initarg :address :accessor tcp-address)
    (port :initarg :port :accessor tcp-port)
