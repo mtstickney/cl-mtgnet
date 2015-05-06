@@ -95,6 +95,7 @@
   "Read responses from CON, storing results until a request containing
 a response with id ID arrives. Will process all results in a response
 before returning."
+  (check-type id (or symbol string))
   ;; TODO: this is probably not the right thing to do, and has case issues
   (let ((id (if (symbolp id)
                 (string-downcase (symbol-name id))
