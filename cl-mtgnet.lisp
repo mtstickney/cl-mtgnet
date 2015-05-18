@@ -34,11 +34,28 @@
   (:method ((con rpc-connection))
     (transport-disconnect (connection-transport con))))
 
+(defgeneric send-frame (con &rest datae)
+  (:documentation "Use CON's framer to write a frame over CON's transport. Mostly for extension convenience.")
+  (:method ((con rpc-connection) &rest datae)
+    (send-frame* con datae)))
+
+(defgeneric send-frame* (con datae)
+  (:documentation "Use CON's framer to write a frame over CON's transport. Wraps WRITE-FRAME, mostly for extension convenience.")
+  (:method ((con rpc-connection) datae)
+    (write-frame (connection-framer con)
+                 (connection-transport con)
+                 datae)))
+
+(defgeneric receive-frame (con)
+  (:documentation "Read and return a frame of data sent over CON. Wraps READ-FRAME, mostly for extension convenience.")
+  (:method ((con rpc-connection))
+    (read-frame (connection-framer con)
+                (connection-transport con))))
+
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
-    (blackbird:multiple-promise-bind (data)
-        (read-frame (connection-framer con) (connection-transport con))
+    (blackbird:multiple-promise-bind (data) (receive-frame con)
       (unmarshall-rpc-response (trivial-utf-8:utf-8-bytes-to-string data)))))
 
 (define-condition duplicate-result-id ()
@@ -78,7 +95,7 @@
                              (marshall-rpc-request request)))
            (request-data (trivial-utf-8:string-to-utf-8-bytes
                           encoded-request)))
-      (send-frame (connection-framer con) (connection-transport con) request-data))))
+      (send-frame con request-data))))
 
 ;; TODO: Error approach: set error-status/condition on connection on
 ;; read; when a future completes later, it will either return the

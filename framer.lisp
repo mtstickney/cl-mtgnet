@@ -12,10 +12,7 @@
 (defgeneric unframe-data (framer frame)
   (:documentation "Return the data framed by FRAME."))
 
-(defgeneric send-frame (framer transport &rest datae)
-  (:documentation "Frame and send one more data fragments over TRANSPORT."))
-
-(defgeneric send-frame* (framer transport datae)
+(defgeneric write-frame (framer transport datae)
   (:documentation "Send multiple data fragments as a single frame over TRANSPORT"))
 
 (defgeneric read-frame (framer transport)
@@ -34,11 +31,8 @@
 (defmethod unframe-data ((framer netstring-framer) frame)
   (nsp:netstring-data frame))
 
-(defmethod send-frame ((framer netstring-framer) transport &rest datae)
-  (send-frame* framer transport datae))
-
 ;; FIXME: this is duplicating pretty much all of NSP's encoding logic.
-(defmethod send-frame* ((framer netstring-framer) transport datae)
+(defmethod write-frame ((framer netstring-framer) transport datae)
   (blackbird:alet* ((len (reduce #'+ datae :key #'length))
                     (header (trivial-utf-8:string-to-utf-8-bytes (format nil "~X:" len)))
                     (end #.(trivial-utf-8:string-to-utf-8-bytes (string #\Linefeed)))
