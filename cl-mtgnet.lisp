@@ -6,7 +6,6 @@
 ;; the data/throwing an error.
 
 (defvar *default-encoder* #'json:encode-json)
-(defvar *default-connection-class* 'rpc-connection)
 
 ;; Utility funcs
 (declaim (inline has-key))
@@ -15,7 +14,6 @@
 
 ;; Stuff for type checks
 (deftype id () '(or string fixnum))
-(deftype future () `(function))
 
 (defclass rpc-connection ()
   ((transport :initarg :transport :accessor connection-transport)
