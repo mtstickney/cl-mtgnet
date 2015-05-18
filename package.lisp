@@ -2,26 +2,62 @@
 
 (defpackage #:mtgnet-sys
   (:use #:cl)
+  ;; Transport API
+  (:export #:transport
+           #:synchronous-transport
+           #:asynchronout-transport
+           #:transport-connect
+           #:transport-disconnect
+           #:transport-read
+           #:transport-read-into!
+           #:transport-write)
+  ;; Builtin transports
+  (:export #:string-output-transport
+           #:string-input-transport
+           ;; Synchronous network transports
+           #:synchronous-tcp-transport
+           #:synchronous-tcp-byte-transport
+           #:tcp-address
+           #:tcp-port
+           #:socket
+           #:tcp-element-type
+           ;; Asynchronous network transports
+           #:asynchronous-tcp-transport
+           #:socket-stream
+           #:read-cb
+           #:write-cb
+           #:error-cb
+           #:unregister-op!)
+  ;; Framer API
+  (:export #:data-framer
+           #:frame-data
+           #:frame-data*
+           #:unframe-data
+           #:write-frame
+           #:read-frame)
+  ;; Builtin framers
+  (:export #:netstring-framer
+           #:netstring-state)
   ;; Basic API
-  (:export #:*default-encoder*
-           #:*default-connection-class*
-           #:define-rpc-method
+  (:export #:rpc-connection
+           #:connect
+           #:disconnect
+           #:invoke-rpc-method
            #:with-batch-calls
            #:wait
+           #:duplicate-result-id
+           #:event-loop-exited
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
            #:remote-error-type
            #:remote-error-msg
            #:remote-error-code
-           #:invalid-json-obj)
+           #:invalid-json-obj
+           #:*default-encoder*
+           #:define-rpc-method)
   ;; Extension points
-  (:export #:rpc-connection
-           #:connect
-           #:disconnect
-           #:data-input-stream
-           #:data-output-stream
-           #:read-response
+  (:export #:read-response
            #:send-request
            #:add-result)
   ;;; Things that extensions might use.
@@ -72,46 +108,52 @@
            #:rpc-warning-list-p
            #:build-rpc-warning-list
            #:marshall-rpc-warning-list
-           #:unmarshall-rpc-warning-list)
+           #:unmarshall-rpc-warning-list
+
+           #:send-frame
+           #:send-frame*
+           #:receive-frame
+           #:process-next-response)
   ;; Utility functions
-  (:export #:make-result-future
-           #:all-futures
-           #:all-futures*
-           #:rpc-call-future
-           #:make-call-obj
-           #:invoke-rpc-method
-           #:with-batch-calls
-           #:socket))
+  (:export #:make-result-promise
+           #:rpc-call-promise
+           #:make-call-obj))
 
 (defpackage #:cl-mtgnet
   (:use #:cl)
   (:nicknames #:mtgnet)
   (:import-from #:mtgnet-sys
+                #:rpc-connection
                 #:connect
                 #:disconnect
-                #:*default-encoder*
-                #:*default-connection-class*
-                #:define-rpc-method
+                #:invoke-rpc-method
                 #:with-batch-calls
                 #:wait
+                #:duplicate-result-id
+                #:event-loop-exited
                 #:remote-warning
                 #:remote-warning-msg
                 #:remote-warning-code
                 #:remote-error-type
                 #:remote-error-msg
                 #:remote-error-code
-                #:invalid-json-obj)
-  (:export #:connect
+                #:invalid-json-obj
+                #:*default-encoder*
+                #:define-rpc-method)
+  (:export #:rpc-connection
+           #:connect
            #:disconnect
-           #:*default-encoder
-           #:*default-connection-class*
-           #:define-rpc-method
+           #:invoke-rpc-method
            #:with-batch-calls
            #:wait
+           #:duplicate-result-id
+           #:event-loop-exited
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
            #:remote-error-type
            #:remote-error-msg
            #:remote-error-code
-           #:invalid-json-obj))
+           #:invalid-json-obj
+           #:*default-encoder
+           #:define-rpc-method))
