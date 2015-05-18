@@ -123,10 +123,10 @@ before returning."
 (define-condition remote-error (error) (type msg code))
 
 (declaim (ftype (function (rpc-connection id)
-                          future)
+                          blackbird:promise)
                 make-result-promise))
 (defun make-result-promise (con id)
-  "Return a future that produces a result with an id of ID from CON."
+  "Return a promise that produces a result with an id of ID from CON."
   (blackbird:multiple-promise-bind (result) (read-result-with-id con id)
     (mapc (lambda (w) (warn 'remote-warning
                             :msg (rpc-error-message w)
@@ -145,7 +145,7 @@ before returning."
 (define-condition event-loop-exited (simple-error) ())
 
 (defun wait (promise)
-  "Wait for a future to complete, then return it's value."
+  "Wait for a promise to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
   (let ((finished nil)
@@ -185,12 +185,12 @@ before returning."
   (let ((id (rpc-call-id rpc-call)))
     (if id
         (make-result-promise con id)
-        ;; null id -> notification, return a trivial future.
+        ;; null id -> notification, return a trivial promise.
         (values))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (declaim (ftype (function (rpc-connection id id list &key (:notification boolean))
-                          (values &optional future))
+                          blackbird:promise)
                 invoke-rpc-method))
 (defun invoke-rpc-method (con service method args &key notification)
   (let ((call (make-call-obj service method args :notification notification)))
