@@ -225,38 +225,38 @@ request, which will be sent at the end of the block."
 ;; TODO: add typespecs for return value and arguments
 ;; Note: args is a list of lists, for providing typespecs in the
 ;; future.
-(defmacro define-rpc-method ((method &optional service  &key notification async) &body args)
-  (check-type method (or symbol string))
-  (check-type service (or symbol string null) "a symbol, string, or NIL")
-  (check-type notification boolean)
-  (let* ((con-symb (gensym "CON"))
-         (service-symb (gensym "SERVICE"))
-         (promise-symb (gensym "PROMISE"))
-         (service-string (etypecase service
-                           (null "")
-                           (symbol (format nil "~A-" (symbol-name service)))
-                           (string (format nil "~A-" service))))
-         (method-string (etypecase method
-                          (string method)
-                          (symbol (symbol-name method))))
-         (funcname (intern (string-upcase (concatenate 'string service-string method-string))))
-         (arglist (mapcar #'first args))
-         (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
-                                                        `(list ,arg ,encoder)))
-                                          args))))
-    `(defun ,funcname ,(cons con-symb
-                             (if (null service)
-                                 (cons service-symb arglist)
-                                 arglist))
-       (let ((,promise-symb (invoke-rpc-method ,con-symb ,(etypecase service
-                                                                     (null service-symb)
-                                                                     (symbol `(quote ,service))
-                                                                     (string service))
-                                               ,(if (symbolp method)
-                                                    `(quote ,method)
-                                                    method)
-                                               ,passed-args
-                                               :notification ,notification)))
-         ,(if async
-              promise-symb
-              `(wait ,promise-symb))))))
+;; (defmacro define-rpc-method ((method &optional service  &key notification async) &body args)
+;;   (check-type method (or symbol string))
+;;   (check-type service (or symbol string null) "a symbol, string, or NIL")
+;;   (check-type notification boolean)
+;;   (let* ((con-symb (gensym "CON"))
+;;          (service-symb (gensym "SERVICE"))
+;;          (promise-symb (gensym "PROMISE"))
+;;          (service-string (etypecase service
+;;                            (null "")
+;;                            (symbol (format nil "~A-" (symbol-name service)))
+;;                            (string (format nil "~A-" service))))
+;;          (method-string (etypecase method
+;;                           (string method)
+;;                           (symbol (symbol-name method))))
+;;          (funcname (intern (string-upcase (concatenate 'string service-string method-string))))
+;;          (arglist (mapcar #'first args))
+;;          (passed-args (cons 'list (mapcar (lambda (a) (bind-args (arg encoder) a
+;;                                                         `(list ,arg ,encoder)))
+;;                                           args))))
+;;     `(defun ,funcname ,(cons con-symb
+;;                              (if (null service)
+;;                                  (cons service-symb arglist)
+;;                                  arglist))
+;;        (let ((,promise-symb (invoke-rpc-method ,con-symb ,(etypecase service
+;;                                                                      (null service-symb)
+;;                                                                      (symbol `(quote ,service))
+;;                                                                      (string service))
+;;                                                ,(if (symbolp method)
+;;                                                     `(quote ,method)
+;;                                                     method)
+;;                                                ,passed-args
+;;                                                :notification ,notification)))
+;;          ,(if async
+;;               promise-symb
+;;               `(wait ,promise-symb))))))

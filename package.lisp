@@ -54,8 +54,7 @@
            #:remote-error-msg
            #:remote-error-code
            #:invalid-json-obj
-           #:*default-encoder*
-           #:define-rpc-method)
+           #:*default-encoder*)
   ;; Extension points
   (:export #:read-response
            #:send-request
@@ -138,8 +137,7 @@
                 #:remote-error-msg
                 #:remote-error-code
                 #:invalid-json-obj
-                #:*default-encoder*
-                #:define-rpc-method)
+                #:*default-encoder*)
   (:export #:rpc-connection
            #:connect
            #:disconnect
@@ -155,5 +153,4 @@
            #:remote-error-msg
            #:remote-error-code
            #:invalid-json-obj
-           #:*default-encoder
-           #:define-rpc-method))
+           #:*default-encoder))
