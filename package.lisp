@@ -81,8 +81,6 @@
            #:make-call-obj
            #:invoke-rpc-method
            #:with-batch-calls
-           #:connection-address
-           #:connection-port
            #:socket))
 
 (defpackage #:cl-mtgnet

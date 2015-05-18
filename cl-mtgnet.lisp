@@ -14,60 +14,32 @@
   (nth-value 1 (gethash key map)))
 
 ;; Stuff for type checks
-(deftype id () '(or symbol string))
+(deftype id () '(or string fixnum))
 (deftype future () `(function))
 
 (defclass rpc-connection ()
-  ((address :initarg :address :accessor connection-address)
-   (port :initarg :port :accessor connection-port)
-   (socket :accessor socket)
-   (result-bucket :initform (make-hash-table :test 'equal)
-                  :accessor result-bucket))
+  ((transport :initarg :transport :accessor connection-transport)
+   (framer :initarg :framer :accessor connection-framer)
+   (next-response :initform nil :accessor next-response-promise)
+   (result-bucket :initform (make-hash-table :test 'equal) :accessor result-bucket))
   (:documentation "Class representing a connection to an RPC server"))
 
 (defgeneric connect (con)
   (:documentation "Connect CON to the remote end.")
   (:method ((con rpc-connection))
-    (setf (socket con) (usocket:socket-connect (connection-address con)
-                                               (connection-port con)
-                                               :element-type '(unsigned-byte 8)))))
+    (transport-connect (connection-transport con))))
 
 (defgeneric disconnect (con)
   (:documentation "Disconnect the connection CON.")
   (:method ((con rpc-connection))
-    (usocket:socket-close (socket con))))
-
-(defgeneric data-input-stream (con)
-  (:documentation "Return a input stream to read data from CON.")
-  (:method ((con rpc-connection))
-    (usocket:socket-stream (socket con))))
-
-(defgeneric data-output-stream (con)
-  (:documentation "Return an output stream to send data to CON.")
-  (:method ((con rpc-connection))
-    (usocket:socket-stream (socket con))))
+    (transport-disconnect (connection-transport con))))
 
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
-    (let* ((stream (data-input-stream con))
-           (str (trivial-utf-8:utf-8-bytes-to-string
-                 (cl-netstring+:read-netstring-data stream))))
-      (unmarshall-rpc-response str))))
-
-(defgeneric send-request (con request &key flush)
-  (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
-  (:method ((con rpc-connection) request &key (flush t))
-    (check-type request rpc-request)
-    (let* ((encoded-request (with-output-to-string (json:*json-output*)
-                             (marshall-rpc-request request)))
-           (request-data (trivial-utf-8:string-to-utf-8-bytes
-                          encoded-request))
-           (stream (data-output-stream con)))
-      (cl-netstring+:write-netstring-bytes stream
-                                           request-data)
-      (when flush
-        (finish-output stream)))))
+    (blackbird:multiple-promise-bind (data)
+        (read-frame (connection-framer con) (connection-transport con))
+      (unmarshall-rpc-response (trivial-utf-8:utf-8-bytes-to-string data)))))
 
 (define-condition duplicate-result-id ()
   ((id)))
@@ -76,12 +48,37 @@
   (:documentation "Add an RPC result to the results received by CON.")
   (:method ((con rpc-connection) result)
     (check-type result rpc-result)
-    (let ((id (rpc-result-id result))
-          (bucket (result-bucket con)))
+    (let* ((id (rpc-result-id result))
+           (bucket (result-bucket con)))
       (when (has-key id bucket)
         (error 'duplicate-result-id :id id))
-      (setf (gethash id bucket) result)
+      (setf (gethash id bucket)
+            result)
       (values))))
+
+(defgeneric process-next-response (con)
+  (:documentation "Process the next response, without triggering an additional read if one is already in progress.")
+  (:method ((con rpc-connection))
+    (let ((next-promise (next-response-promise con)))
+      (if (or (not (blackbird:promisep next-promise))
+              (blackbird:promise-finished-p next-promise))
+          ;; If the previous next-promise is complete, go read another response.
+          (setf (next-response-promise con)
+                (blackbird:multiple-promise-bind (response) (read-response con)
+                  (map nil (lambda (result) (add-result con result)) response)
+                  (values)))
+          ;; Otherwise return the existing promise.
+          next-promise))))
+
+(defgeneric send-request (con request &key flush)
+  (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
+  (:method ((con rpc-connection) request &key (flush t))
+    (check-type request rpc-request)
+    (let* ((encoded-request (with-output-to-string (json:*json-output*)
+                             (marshall-rpc-request request)))
+           (request-data (trivial-utf-8:string-to-utf-8-bytes
+                          encoded-request)))
+      (send-frame (connection-framer con) (connection-transport con) request-data))))
 
 ;; TODO: Error approach: set error-status/condition on connection on
 ;; read; when a future completes later, it will either return the
@@ -95,56 +92,68 @@
   "Read responses from CON, storing results until a request containing
 a response with id ID arrives. Will process all results in a response
 before returning."
-  (check-type id (or symbol string))
-  ;; TODO: this is probably not the right thing to do, and has case issues
-  (let ((id (if (symbolp id)
-                (string-downcase (symbol-name id))
-                id))
-        (bucket (result-bucket con)))
-    (loop until (has-key id bucket)
-       for response = (read-response con)
-       ;; a response is a list of results
-       do (mapc #'(lambda (r) (add-result con r))
-                response))
-    ;; Return the result and remove it from the bucket
-    (prog1 (gethash id bucket)
-      (remhash id bucket))))
+  (check-type id id)
+  ;; FIXME: This needs a timeout, or we might keep chipmunking results
+  ;; forever if the remote end never sends the right id back.
+  (labels ((get-result ()
+             (let ((bucket (result-bucket con)))
+               (if (has-key id bucket)
+                   (prog1 (gethash id bucket)
+                     (remhash id bucket))
+                   (blackbird:multiple-promise-bind () (process-next-response con)
+                     (get-result))))))
+    (get-result)))
 
 (define-condition remote-warning (warning) (msg code))
 (define-condition remote-error (error) (type msg code))
 
 (declaim (ftype (function (rpc-connection id)
                           future)
-                make-result-future))
-(defun make-result-future (con id)
+                make-result-promise))
+(defun make-result-promise (con id)
   "Return a future that produces a result with an id of ID from CON."
-  (lambda ()
-    (let* ((result (read-result-with-id con id))
-           (error (rpc-result-error result)))
-      (mapc (lambda (w) (warn 'remote-warning
-                              :msg (rpc-error-message w)
-                              :code (rpc-error-code w)))
-            (rpc-result-warnings result))
+  (blackbird:multiple-promise-bind (result) (read-result-with-id con id)
+    (mapc (lambda (w) (warn 'remote-warning
+                            :msg (rpc-error-message w)
+                            :code (rpc-error-code w)))
+          (rpc-result-warnings result))
+    (let* ((error (rpc-result-error result))
+           (condition-type (and error (rpc-error-data error))))
       (when error
-        (let ((condition-type (rpc-error-data error)))
-          (error 'remote-error
-                 :msg (rpc-error-message error)
-                 :code (rpc-error-code error)
-                 :type (if (typep condition-type 'string) condition-type nil))))
-      (rpc-result-data result))))
+        (error 'remote-error
+               :msg (rpc-error-message error)
+               :code (rpc-error-code error)
+               :type (if (typep condition-type 'string) condition-type nil))))
+    (rpc-result-data result)))
 
-(defun all-futures* (futures)
-  (lambda ()
-    (mapcar #'wait futures)))
+;; FIXME: parent type and/or name needs adjusting
+(define-condition event-loop-exited (simple-error) ())
 
-(defun all-futures (&rest futures)
-  (all-futures* futures))
-
-(defun wait (future)
+(defun wait (promise)
   "Wait for a future to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
-  (funcall future))
+  (let ((finished nil)
+        result-vals
+        error)
+    (blackbird:chain (blackbird:attach promise
+                                       (lambda (&rest vals)
+                                         (setf result-vals vals)))
+      (:catch (ev)
+        (setf error ev))
+      (:finally ()
+        (setf finished t)))
+
+    (loop with res = 1
+       while (and (/= res 0)
+                  (not finished))
+       do (setf res (uv:uv-run (cl-async-base:event-base-c cl-async-base:*event-base*)
+                               (cffi:foreign-enum-value 'uv:uv-run-mode :run-once))))
+
+    (cond
+      ((and finished error) (error error))
+      (finished (values-list result-vals))
+      (t (error 'event-loop-exited "No more events to process")))))
 
 (declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
                 make-call-obj))
@@ -154,15 +163,15 @@ before returning."
                  :args parameters
                  :id (if notification
                          nil
-                         (gensym "CALL"))))
+                         (random most-positive-fixnum))))
 
-(defun rpc-call-future (con rpc-call)
+(defun rpc-call-promise (con rpc-call)
   (check-type rpc-call rpc-call)
   (let ((id (rpc-call-id rpc-call)))
     (if id
-        (make-result-future con id)
+        (make-result-promise con id)
         ;; null id -> notification, return a trivial future.
-        (lambda () (values)))))
+        (values))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (declaim (ftype (function (rpc-connection id id list &key (:notification boolean))
@@ -175,7 +184,7 @@ before returning."
     (if (boundp '*rpc-batch*)
         (push call *rpc-batch*)
         (send-request con (list call)))
-    (rpc-call-future con call)))
+    (rpc-call-promise con call)))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
@@ -185,9 +194,9 @@ request, which will be sent at the end of the block."
      ,@body
      (let ((batch (reverse *rpc-batch*)))
        (send-request ,con batch)
-       (all-futures* (mapcar (lambda (call)
-                               (rpc-call-future ,con call))
-                             batch)))))
+       (blackbird:all (mapcar (lambda (call)
+                                (rpc-call-promise ,con call))
+                              batch)))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
   (let ((typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
