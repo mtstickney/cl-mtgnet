@@ -94,9 +94,9 @@
           ;; Otherwise return the existing promise.
           next-promise))))
 
-(defgeneric send-request (con request &key flush)
-  (:documentation "Marshall and send REQUEST over CON. If FLUSH is T, flush the output buffer.")
-  (:method ((con rpc-connection) request &key (flush t))
+(defgeneric send-request (con request)
+  (:documentation "Marshall and send REQUEST over CON.")
+  (:method ((con rpc-connection) request)
     (check-type request rpc-request)
     (let* ((encoded-request (with-output-to-string (json:*json-output*)
                              (marshall-rpc-request request)))

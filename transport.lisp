@@ -24,8 +24,13 @@
 (defgeneric transport-read-into! (transport seq &key start end)
   (:documentation "Destructively modify SEQ with elements from TRANSPORT."))
 
-(defgeneric transport-write (transport data &key flush)
-  (:documentation "Send DATA to the remote end of TRANSPORT, optionally flushing the write."))
+(defgeneric transport-write (transport data)
+  (:documentation "Send DATA to the remote end of TRANSPORT."))
+
+(defgeneric transport-flush (transport)
+  (:documentation "Flush buffers associated with TRANSPORT, if any.")
+  (:method (transport)
+    (values)))
 
 ;;; Useful for testing/debugging
 (defclass string-output-transport (synchronous-transport)
@@ -42,11 +47,12 @@
          (seq (flexi-streams:get-output-stream-sequence stream)))
     (flexi-streams:octets-to-string seq :external-format (external-format transport))))
 
-(defmethod transport-write ((transport string-output-transport) data &key flush)
+(defmethod transport-write ((transport string-output-transport) data)
   (let ((stream (output-stream transport)))
-    (write-sequence data stream)
-    (when flush
-      (finish-output stream))))
+    (write-sequence data stream)))
+
+(defmethod transport-flush ((transport string-output-transport))
+  (finish-output (output-stream transport)))
 
 (defclass string-input-transport (synchronous-transport)
   ((stream :accessor input-stream)
@@ -118,11 +124,12 @@
       (error 'end-of-file :stream stream))
     (values)))
 
-(defmethod transport-write ((transport synchronous-tcp-transport) data &key flush)
+(defmethod transport-write ((transport synchronous-tcp-transport) data)
   (let ((stream (usocket:socket-stream (socket transport))))
-    (write-sequence data stream)
-    (when flush
-      (finish-output stream))))
+    (write-sequence data stream)))
+
+(defmethod transport-flush ((transport synchronous-tcp-transport))
+  (finish-output (usocket:socket-stream (socket transport))))
 
 (defclass asynchronous-tcp-transport (asynchronous-transport)
   ((address :initarg :address :accessor tcp-address)
@@ -217,7 +224,7 @@
                                      (unregister-op! transport)
                                      (reject ev)))))))
 
-(defmethod transport-write ((transport asynchronous-tcp-transport) data &key flush)
+(defmethod transport-write ((transport asynchronous-tcp-transport) data)
   (blackbird:with-promise (resolve reject)
     (setf (read-cb transport) nil
           (write-cb transport) (lambda (socket)
@@ -225,14 +232,9 @@
                                  ;; Write's complete, unregister the
                                  ;; handlers
                                  (unregister-op! transport)
-                                 ;; If FLUSH is nil, we resolve in
-                                 ;; TRANSPORT-WRITE itself.
-                                 (when flush
-                                   (resolve)))
+                                 (resolve))
           (error-cb transport) (lambda (ev)
                                  (unregister-op! transport)
                                  (reject ev)))
     ;; How does {finish,force}-output play with async-io-stream?
-    (write-sequence data (socket-stream transport))
-    (unless flush
-      (resolve))))
+    (write-sequence data (socket-stream transport))))

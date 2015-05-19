@@ -10,7 +10,8 @@
            #:transport-disconnect
            #:transport-read
            #:transport-read-into!
-           #:transport-write)
+           #:transport-write
+           #:transport-flush)
   ;; Builtin transports
   (:export #:string-output-transport
            #:string-input-transport
