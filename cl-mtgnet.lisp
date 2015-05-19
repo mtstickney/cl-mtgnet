@@ -50,6 +50,15 @@
     (read-frame (connection-framer con)
                 (connection-transport con))))
 
+(defgeneric send-response (con response)
+  (:documentation "Marshall and send RESPONSE over CON.")
+  (:method ((con rpc-connection) response)
+    (check-type response rpc-response)
+    (let* ((response-message (with-output-to-string (json:*json-output*)
+                               (marshall-rpc-response response)))
+           (request-data (trivial-utf-8:string-to-utf-8-bytes response-message)))
+      (send-frame con request-data))))
+
 (defgeneric read-response (con)
   (:documentation "Read and unmarshall an RPC response from CON.")
   (:method ((con rpc-connection))
@@ -94,6 +103,12 @@
            (request-data (trivial-utf-8:string-to-utf-8-bytes
                           encoded-request)))
       (send-frame con request-data))))
+
+(defgeneric read-request (con)
+  (:documentation "Read and unmarshall an RPC request from CON.")
+  (:method ((con rpc-connection))
+    (blackbird:multiple-promise-bind (data) (receive-frame con)
+      (unmarshall-rpc-request (trivial-utf-8:utf-8-bytes-to-string data)))))
 
 ;; TODO: Error approach: set error-status/condition on connection on
 ;; read; when a future completes later, it will either return the

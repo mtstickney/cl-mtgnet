@@ -56,8 +56,10 @@
            #:invalid-json-obj
            #:*default-encoder*)
   ;; Extension points
-  (:export #:read-response
+  (:export #:send-response
+           #:read-response
            #:send-request
+           #:read-request
            #:add-result)
   ;;; Things that extensions might use.
   ;; Standard objects.
