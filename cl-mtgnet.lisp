@@ -30,7 +30,8 @@
 (defgeneric disconnect (con)
   (:documentation "Disconnect the connection CON.")
   (:method ((con rpc-connection))
-    (transport-disconnect (connection-transport con))))
+    (transport-disconnect (connection-transport con))
+    (setf (next-response-promise con) nil)))
 
 (defgeneric send-frame (con &rest datae)
   (:documentation "Use CON's framer to write a frame over CON's transport. Mostly for extension convenience.")
