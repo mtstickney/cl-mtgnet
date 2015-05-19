@@ -210,11 +210,14 @@ before returning."
 (defun invoke-rpc-method (con service method args &key notification)
   (let ((call (make-call-obj service method args :notification notification)))
     (declare (special *rpc-batch*))
-    ;; if *rpc-batch* is bound, just add the call to it
-    (if (boundp '*rpc-batch*)
-        (push call *rpc-batch*)
-        (send-request con (list call)))
-    (rpc-call-promise con call)))
+    (cond
+      ((boundp '*rpc-batch*)
+       ;; If *rpc-batch* is bound we want to return a stub promise and
+       ;; let WITH-BATCH-CALLS trigger the read and complete it.
+       (blackbird:with-promise (resolve reject :resolve-fn resolve-it)
+         (push (cons call resolve-it) *rpc-batch*)))
+      (t (send-request con (list call))
+         (rpc-call-promise con call)))))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
@@ -223,9 +226,12 @@ request, which will be sent at the end of the block."
      (declare (special *rpc-batch*))
      ,@body
      (let ((batch (reverse *rpc-batch*)))
-       (send-request ,con batch)
-       (blackbird:all (mapcar (lambda (call)
-                                (rpc-call-promise ,con call))
+       (send-request ,con (mapcar #'first batch))
+       (blackbird:all (mapcar (lambda (cell)
+                                (let ((resolver (cdr cell))
+                                      (promise (rpc-call-promise ,con (car cell))))
+                                  (funcall resolver promise)
+                                  promise))
                               batch)))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
