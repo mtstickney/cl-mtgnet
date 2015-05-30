@@ -161,4 +161,4 @@
            #:remote-error-msg
            #:remote-error-code
            #:invalid-json-obj
-           #:*default-encoder))
+           #:*default-encoder*))
