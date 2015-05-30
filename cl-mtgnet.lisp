@@ -135,8 +135,21 @@ before returning."
                      (get-result))))))
     (get-result)))
 
-(define-condition remote-warning (warning) (msg code))
-(define-condition remote-error (error) (type msg code))
+(define-condition remote-warning (warning)
+  ((msg :initarg msg :accessor remote-warning-msg)
+   (code :initarg :code :accessor remote-warning-code))
+  (:report (lambda (c s)
+             (format s "Remote warning: ~A (~A)."
+                     (remote-warning-msg c)
+                     (remote-warning-code c)))))
+(define-condition remote-error (error)
+  ((type :initarg :type :accessor remote-error-type)
+   (msg :initarg :msg :accessor remote-error-msg)
+   (code :initarg :code :accessor remote-error-code))
+  (:report (lambda (c s)
+             (format s "Remote error: ~A (~A)."
+                     (remote-error-msg c)
+                     (remote-error-code c)))))
 
 (declaim (ftype (function (rpc-connection id)
                           blackbird:promise)
