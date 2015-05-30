@@ -51,6 +51,7 @@
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
+           #:remote-error
            #:remote-error-type
            #:remote-error-msg
            #:remote-error-code
@@ -64,7 +65,8 @@
            #:add-result)
   ;;; Things that extensions might use.
   ;; Standard objects.
-  (:export #:rpc-call-p
+  (:export #:rpc-call
+           #:rpc-call-p
            #:rpc-call-service
            #:rpc-call-id
            #:rpc-call-method
@@ -74,6 +76,7 @@
            #:marshall-rpc-call
            #:unmarshall-rpc-call
 
+           #:rpc-error
            #:rpc-error-p
            #:rpc-error-message
            #:rpc-error-code
@@ -136,6 +139,7 @@
                 #:remote-warning
                 #:remote-warning-msg
                 #:remote-warning-code
+                #:remote-error
                 #:remote-error-type
                 #:remote-error-msg
                 #:remote-error-code
@@ -152,6 +156,7 @@
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
+           #:remote-error
            #:remote-error-type
            #:remote-error-msg
            #:remote-error-code
