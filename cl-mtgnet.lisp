@@ -117,12 +117,11 @@
 ;; the stored condition (is it reasonable to re-throw the same
 ;; condition more than once? What if error handling has been done
 ;; in-between?).
-(declaim (ftype (function (rpc-connection id) rpc-result)
-                read-result-with-id))
 (defun read-result-with-id (con id)
   "Read responses from CON, storing results until a request containing
 a response with id ID arrives. Will process all results in a response
 before returning."
+  (check-type con rpc-connection)
   (check-type id id)
   ;; FIXME: This needs a timeout, or we might keep chipmunking results
   ;; forever if the remote end never sends the right id back.
@@ -151,11 +150,10 @@ before returning."
                      (remote-error-msg c)
                      (remote-error-code c)))))
 
-(declaim (ftype (function (rpc-connection id)
-                          blackbird:promise)
-                make-result-promise))
 (defun make-result-promise (con id)
   "Return a promise that produces a result with an id of ID from CON."
+  (check-type con rpc-connection)
+  (check-type id id)
   (blackbird:multiple-promise-bind (result) (read-result-with-id con id)
     (mapc (lambda (w) (warn 'remote-warning
                             :msg (rpc-error-message w)
@@ -199,9 +197,9 @@ before returning."
       (finished (values-list result-vals))
       (t (error 'event-loop-exited "No more events to process")))))
 
-(declaim (ftype (function (id id list &key (:notification boolean)) rpc-call)
-                make-call-obj))
 (defun make-call-obj (service method parameters &key notification)
+  (check-type service (or symbol string))
+  (check-type method (or symbol string))
   (make-rpc-call :service (if (typep service 'string) service (symbol-name service))
                  :method (if (typep method 'string) method (symbol-name method))
                  :args parameters
@@ -218,10 +216,8 @@ before returning."
         (values))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
-(declaim (ftype (function (rpc-connection id id list &key (:notification boolean))
-                          blackbird:promise)
-                invoke-rpc-method))
 (defun invoke-rpc-method (con service method args &key notification)
+  (check-type con rpc-connection)
   (let ((call (make-call-obj service method args :notification notification)))
     (declare (special *rpc-batch*))
     (cond
