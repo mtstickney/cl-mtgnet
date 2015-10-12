@@ -2,9 +2,28 @@
   (:use #:cl #:mtgnet-sys)
   (:export #:synchronous-transport
            #:synchronous-tcp-transport
-           #:synchronous-tcp-byte-transport))
+           #:synchronous-tcp-byte-transport
+           #:wait))
 
 (in-package #:mtgnet.sync)
+
+(defun wait (promise)
+  "Wait for a promise to complete, then return it's value."
+  (when (boundp '*rpc-batch*)
+    (warn "MTGNET.SYNC:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
+  (let (result-vals
+        (error nil))
+    (unless (blackbird:promise-finished-p promise)
+      (error "Synchronous promise is not complete at time of WAIT. Something is very wrong here..."))
+    (blackbird:chain (blackbird:attach promise
+                                       (lambda (&rest vals)
+                                         (setf result-vals vals)))
+      (:catch (ev)
+        (setf error ev)))
+    (if error
+        ;; Throw the received error.
+        (error error)
+        (values-list result-vals))))
 
 (defclass synchronous-transport (transport) ())
 

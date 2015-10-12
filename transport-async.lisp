@@ -1,9 +1,42 @@
 (defpackage #:mtgnet.async
   (:use #:cl #:mtgnet-sys)
   (:export #:asynchronous-transport
-           #:asynchronous-tcp-transport))
+           #:asynchronous-tcp-transport
+           #:wait))
 
 (in-package #:mtgnet.async)
+
+;;; A utility function for waiting on asynchronous promises. Also
+;; works on synchronous promises.
+
+;; FIXME: parent type and/or name needs adjusting
+(define-condition event-loop-exited (simple-error) ())
+
+(defun wait (promise)
+  "Wait for a promise to complete, then return it's value."
+  (when (boundp '*rpc-batch*)
+    (warn "MTGNET.ASYNC:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
+  (let ((finished nil)
+        result-vals
+        error)
+    (blackbird:chain (blackbird:attach promise
+                                       (lambda (&rest vals)
+                                         (setf result-vals vals)))
+      (:catch (ev)
+        (setf error ev))
+      (:finally ()
+        (setf finished t)))
+
+    (loop with res = 1
+       while (and (/= res 0)
+                  (not finished))
+       do (setf res (uv:uv-run (cl-async-base:event-base-c cl-async-base:*event-base*)
+                               (cffi:foreign-enum-value 'uv:uv-run-mode :run-once))))
+
+    (cond
+      ((and finished error) (error error))
+      (finished (values-list result-vals))
+      (t (error 'event-loop-exited "No more events to process")))))
 
 (defclass asynchronous-transport (transport) ())
 

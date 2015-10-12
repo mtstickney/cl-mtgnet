@@ -168,35 +168,6 @@ before returning."
                :type (if (typep condition-type 'string) condition-type nil))))
     (rpc-result-data result)))
 
-;; FIXME: parent type and/or name needs adjusting
-(define-condition event-loop-exited (simple-error) ())
-
-(defun wait (promise)
-  "Wait for a promise to complete, then return it's value."
-  (when (boundp '*rpc-batch*)
-    (warn "CL-MTGNET:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
-  (let ((finished nil)
-        result-vals
-        error)
-    (blackbird:chain (blackbird:attach promise
-                                       (lambda (&rest vals)
-                                         (setf result-vals vals)))
-      (:catch (ev)
-        (setf error ev))
-      (:finally ()
-        (setf finished t)))
-
-    (loop with res = 1
-       while (and (/= res 0)
-                  (not finished))
-       do (setf res (uv:uv-run (cl-async-base:event-base-c cl-async-base:*event-base*)
-                               (cffi:foreign-enum-value 'uv:uv-run-mode :run-once))))
-
-    (cond
-      ((and finished error) (error error))
-      (finished (values-list result-vals))
-      (t (error 'event-loop-exited "No more events to process")))))
-
 (defun make-call-obj (service method parameters &key notification)
   (check-type service (or symbol string))
   (check-type method (or symbol string))
