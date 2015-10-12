@@ -8,9 +8,7 @@
   :depends-on (#:trivial-utf-8
                #:cl-json
                #:cl-netstring+
-               #:blackbird
-               #:cl-async
-               #:usocket)
+               #:blackbird)
   :components ((:file "package")
                (:file "marshall")
                (:file "transport")
