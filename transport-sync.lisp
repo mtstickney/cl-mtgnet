@@ -51,7 +51,9 @@
 (defmethod transport-disconnect ((transport synchronous-tcp-transport))
   (let ((sock (socket transport)))
     (when sock
-      (usocket:socket-close sock)
+      (handler-case (usocket:socket-close sock)
+        (error (c)
+          (warn "Error signalled while closing socket (~S): ~A" c c)))
       (setf (socket transport) nil))))
 
 (defmethod transport-read ((transport synchronous-tcp-transport) size)

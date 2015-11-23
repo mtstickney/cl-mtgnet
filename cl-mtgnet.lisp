@@ -30,9 +30,10 @@
 (defgeneric disconnect (con)
   (:documentation "Disconnect the connection CON.")
   (:method ((con rpc-connection))
-    (transport-disconnect (connection-transport con))
     (setf (next-response-promise con) nil
-          (result-bucket con) (make-hash-table :test 'equal))))
+          (result-bucket con) (make-hash-table :test 'equal))
+    ;; FIXME: This can error, should maybe swallow it.
+    (transport-disconnect (connection-transport con))))
 
 (defgeneric send-frame (con &rest datae)
   (:documentation "Use CON's framer to write a frame over CON's transport. Mostly for extension convenience.")
