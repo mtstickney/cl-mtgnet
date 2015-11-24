@@ -15,6 +15,8 @@
 ;; Stuff for type checks
 (deftype id () '(or string fixnum))
 
+;; TODO: add a list of waiters here so that they can be notified on
+;; shutdown (instead of just silently clearing the response bucket).
 (defclass rpc-connection ()
   ((transport :initarg :transport :accessor connection-transport)
    (framer :initarg :framer :accessor connection-framer)
