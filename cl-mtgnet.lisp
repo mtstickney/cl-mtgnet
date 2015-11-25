@@ -21,7 +21,8 @@
   ((transport :initarg :transport :accessor connection-transport)
    (framer :initarg :framer :accessor connection-framer)
    (next-response :initform nil :accessor next-response-promise)
-   (result-bucket :initform (make-hash-table :test 'equal) :accessor result-bucket))
+   (result-bucket :initform (make-hash-table :test 'equal) :accessor result-bucket)
+   (result-waiters :initform (make-hash-table :test 'equal) :accessor result-waiters))
   (:documentation "Class representing a connection to an RPC server"))
 
 (defgeneric connect (con)
@@ -114,6 +115,58 @@
   (:method ((con rpc-connection))
     (blackbird:multiple-promise-bind (data) (receive-frame con)
       (unmarshall-rpc-request (trivial-utf-8:utf-8-bytes-to-string data)))))
+
+(defun register-waiter (con id resolve-fn reject-fn)
+  (check-type con rpc-connection)
+  (check-type id id)
+  (check-type resolve-fn (or function symbol))
+  (check-type reject-fn (or function symbol))
+  (when (gethash id (result-waiters con))
+    (error "There is already a waiter for ID ~S on ~S~%." id con))
+  (let ((resolver (lambda (&rest args)
+                    ;; Unregister the waiter.
+                    (unregister-waiter con id)
+                    (apply resolve-fn args)))
+        (rejecter (lambda (&rest args)
+                    ;; Unregister the waiter.
+                    (unregister-waiter con id)
+                    (apply reject-fn args))))
+    (setf (gethash id (result-waiters con)) (cons resolver rejecter))
+    id))
+
+(defun unregister-waiter (con id)
+  (check-type con rpc-connection)
+  (check-type id id)
+  (remhash id (result-waiters con)))
+
+(defun waiter-exists-p (con id)
+  (check-type con rpc-connection)
+  (check-type id id)
+  (gethash id (result-waiters con)))
+
+(defun waiter-resolve-fn (entry)
+  (check-type entry cons)
+  (car entry))
+
+(defun waiter-reject-fn (entry)
+  (check-type entry cons)
+  (cdr entry))
+
+(defun resolve-waiter (con id &rest vals)
+  (check-type con rpc-connection)
+  (check-type id id)
+  (let ((entry (waiter-exists-p con id)))
+    (unless entry
+      (error "There is no registered waiter for ID ~S~%" id))
+    (apply (waiter-resolve-fn entry) vals)))
+
+(defun reject-waiter (con id &rest vals)
+  (check-type con rpc-connection)
+  (check-type id id)
+  (let ((entry (waiter-exists-p con id)))
+    (unless entry
+      (error "There is no registered waiter for ID ~S~%" id))
+    (apply (waiter-reject-fn entry) vals)))
 
 ;; TODO: Error approach: set error-status/condition on connection on
 ;; read; when a future completes later, it will either return the
