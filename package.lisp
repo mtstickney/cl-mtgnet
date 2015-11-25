@@ -58,7 +58,8 @@
            #:invalid-json-obj
            #:*default-encoder*)
   ;; Extension points
-  (:export #:send-response
+  (:export #:submit-batch
+           #:send-response
            #:read-response
            #:send-request
            #:read-request

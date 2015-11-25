@@ -243,6 +243,19 @@ before returning."
         ;; null id -> notification, return a trivial promise.
         (values))))
 
+;; Precondition: calls must have been registered with REGISTER-WAITER
+;; before calling this.
+(defgeneric submit-batch (con call-objs)
+  (:method ((con rpc-connection) call-objs)
+    (blackbird:wait (send-request con call-objs)
+      (blackbird:all (mapcar (lambda (call)
+                               (let ((result (rpc-call-promise con call))
+                                     (waiter (waiter-exists-p con (rpc-call-id call))))
+                                 (when waiter
+                                   (funcall (waiter-resolve-fn waiter) result))
+                                 result))
+                             call-objs)))))
+
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (defun invoke-rpc-method (con service method args &key notification)
   (check-type con rpc-connection)
@@ -252,10 +265,9 @@ before returning."
       ((boundp '*rpc-batch*)
        ;; If *rpc-batch* is bound we want to return a stub promise and
        ;; let WITH-BATCH-CALLS trigger the read and complete it.
-       (blackbird:with-promise (resolve reject :resolve-fn resolve-it)
-         (push (cons call resolve-it) *rpc-batch*)))
-      (t (blackbird:wait (send-request con (list call))
-           (rpc-call-promise con call))))))
+       (blackbird:with-promise (resolve reject :resolve-fn resolve-it :reject-fn reject-it)
+         (push (list call resolve-it reject-it) *rpc-batch*)))
+      (t (submit-batch con (list call))))))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
@@ -264,13 +276,15 @@ request, which will be sent at the end of the block."
      (declare (special *rpc-batch*))
      ,@body
      (let ((batch (reverse *rpc-batch*)))
-       (blackbird:wait (send-request ,con (mapcar #'first batch))
-         (blackbird:all (mapcar (lambda (cell)
-                                  (let ((resolver (cdr cell))
-                                        (promise (rpc-call-promise ,con (car cell))))
-                                    (funcall resolver promise)
-                                    promise))
-                                batch))))))
+       (progn
+         ;; Register the calls for non-notifications.
+         (loop for (call resolver rejecter) in *rpc-batch*
+            for id = (rpc-call-id call)
+            when id
+            do (register-waiter ,con id resolver rejecter))
+
+         ;; Now send the actual request.
+         (submit-batch ,con (mapcar #'first batch))))))
 
 (defmacro bind-args ((arg-var encoder-var &optional typespec-var) arg-obj &body body)
   (let ((typespec-var (if typespec-var typespec-var (gensym "TYPESPEC"))))
