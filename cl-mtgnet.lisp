@@ -267,7 +267,9 @@ before returning."
        ;; let WITH-BATCH-CALLS trigger the read and complete it.
        (blackbird:with-promise (resolve reject :resolve-fn resolve-it :reject-fn reject-it)
          (push (list call resolve-it reject-it) *rpc-batch*)))
-      (t (submit-batch con (list call))))))
+      (t (blackbird:attach (submit-batch con (list call))
+                           ;; Single method call shouldn't be a list.
+                           #'first)))))
 
 (defmacro with-batch-calls ((con &optional (batch-req nil batch-supplied-p)) &body body)
   "Arrange for RPC calls in this block to collect their calls into one
