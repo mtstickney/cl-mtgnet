@@ -46,8 +46,9 @@
    (stream :initarg :stream :accessor socket-stream)
    (read-callback :initarg :read-cb :accessor read-cb)
    (write-callback :initarg :write-cb :accessor write-cb)
-   (error-callback :initarg :err-cb :accessor error-cb))
-  (:default-initargs :stream nil)
+   (error-callback :initarg :err-cb :accessor error-cb)
+   (keep-alive :initarg :keep-alive :accessor keep-alive-p))
+  (:default-initargs :stream nil :keep-alive nil)
   (:documentation "Class for transporting data over a TCP socket asynchronously."))
 
 (defmethod transport-connect ((transport asynchronous-tcp-transport))
@@ -80,7 +81,12 @@
                           :connect-cb (lambda (socket)
                                         (resolve socket))
                           :stream t
-                          :dont-drain-read-buffer t))))
+                          :dont-drain-read-buffer t))
+    (when (keep-alive-p transport)
+      (uv:uv-tcp-keepalive (as:socket-c (as:streamish (socket-stream transport)))
+                           1 ;; enable it
+                           30 ;; delay 30 seconds before starting keepalive.
+                           ))))
 
 ;; FIXME: do we need to run the error callback for any in-progress operation?
 (defmethod transport-disconnect ((transport asynchronous-tcp-transport))

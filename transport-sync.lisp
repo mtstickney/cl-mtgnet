@@ -31,8 +31,10 @@
   ((address :initarg :address :accessor tcp-address)
    (port :initarg :port :accessor tcp-port)
    (socket :initarg :socket :accessor socket)
-   (element-type :initarg :element-type :accessor tcp-element-type))
-  (:default-initargs :socket nil)
+   (element-type :initarg :element-type :accessor tcp-element-type)
+   (keep-alive :initarg :keep-alive :accessor keep-alive-p
+               :documentation "Whether to use TCP keep-alive on this socket."))
+  (:default-initargs :socket nil :keep-alive nil)
   (:documentation "Class for transporting data over a TCP socket."))
 
 (defclass synchronous-tcp-byte-transport (synchronous-tcp-transport)
@@ -40,12 +42,20 @@
   (:default-initargs :element-type '(unsigned-byte 8))
   (:documentation "Transport for sending bytes over a TCP socket."))
 
+(defun keep-socket-alive (socket)
+  #+sbcl (setf (sb-bsd-sockets:sockopt-keep-alive socket) t)
+  #+allegro (socket:set-socket-options socket :keepalive t)
+  #+ccl (ccl::set-socket-options socket :keepalive t)
+  #-(or sbcl allegro ccl) (error "KEEP-SOCKET-ALIVE not implemented on this platform."))
+
 (defmethod transport-connect ((transport synchronous-tcp-transport))
   (when (socket transport)
     (transport-disconnect transport))
   (setf (socket transport) (usocket:socket-connect (tcp-address transport)
                                                    (tcp-port transport)
                                                    :element-type (tcp-element-type transport)))
+  (when (keep-alive-p transport)
+    (keep-socket-alive (usocket:socket (socket transport))))
   (values))
 
 (defmethod transport-disconnect ((transport synchronous-tcp-transport))
