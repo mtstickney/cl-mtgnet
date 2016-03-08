@@ -121,22 +121,21 @@
                  (read-available stream)
                  ;; If we've got enough, unregister the wakeup routine.
                  (when (= read-pos end)
-                   (unregister-op! transport)))
+                   (unregister-op! transport)
+                   (resolve)))
                (read-available (stream)
                  (let ((bytes (read-sequence seq stream :start read-pos :end end)))
-                   (incf read-pos bytes)
-                   (when (= read-pos end)
-                     ;; Done, complete the promise.
-                     (resolve)))))
-        ;; Try to use already buffere data first
-        (read-available (socket-stream transport))
-        ;; If that wasn't enough, set a handler to try again when
-        ;; there's more data to read.
-        (setf (read-cb transport) #'resume-read
-              (write-cb transport) nil
-              (error-cb transport) (lambda (ev)
-                                     (unregister-op! transport)
-                                     (reject ev)))))))
+                   (incf read-pos bytes))))
+        ;; Try to use already buffered data first
+        (resume-read nil (socket-stream transport))
+        (unless (= read-pos end)
+          ;; If that wasn't enough, set a handler to try again when
+          ;; there's more data to read.
+          (setf (read-cb transport) #'resume-read
+                (write-cb transport) nil
+                (error-cb transport) (lambda (ev)
+                                       (unregister-op! transport)
+                                       (reject ev))))))))
 
 (defmethod transport-write ((transport asynchronous-tcp-transport) data)
   (blackbird:with-promise (resolve reject)
