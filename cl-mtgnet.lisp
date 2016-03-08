@@ -22,13 +22,14 @@
    (framer :initarg :framer :accessor connection-framer)
    (next-response :initform nil :accessor next-response-promise)
    (result-bucket :initform (make-hash-table :test 'equal) :accessor result-bucket)
-   (result-waiters :initform (make-hash-table :test 'equal) :accessor result-waiters))
+   (result-waiters :initform (make-hash-table :test 'equal) :accessor result-waiters)
+   (current-request :initform nil :accessor current-request))
   (:documentation "Class representing a connection to an RPC server"))
 
 (defgeneric connect (con)
   (:documentation "Connect CON to the remote end.")
   (:method ((con rpc-connection))
-    (transport-connect (connection-transport con))))
+    (setf (current-request con) (transport-connect (connection-transport con)))))
 
 (defgeneric disconnect (con)
   (:documentation "Disconnect the connection CON.")
@@ -247,14 +248,19 @@ before returning."
 ;; before calling this.
 (defgeneric submit-batch (con call-objs)
   (:method ((con rpc-connection) call-objs)
-    (blackbird:wait (send-request con call-objs)
-      (blackbird:all (mapcar (lambda (call)
-                               (let ((result (rpc-call-promise con call))
-                                     (waiter (waiter-exists-p con (rpc-call-id call))))
-                                 (when waiter
-                                   (funcall (waiter-resolve-fn waiter) result))
-                                 result))
-                             call-objs)))))
+    (setf (current-request con)
+          (blackbird:chain (blackbird:catcher (current-request con)
+                                              (serious-condition ()))
+            (:attach ()
+                     (send-request con call-objs))
+            (:attach ()
+                     (blackbird:all (mapcar (lambda (call)
+                                              (let ((result (rpc-call-promise con call))
+                                                    (waiter (waiter-exists-p con (rpc-call-id call))))
+                                                (when waiter
+                                                  (funcall (waiter-resolve-fn waiter) result))
+                                                result))
+                                            call-objs)))))))
 
 ;; TODO: add timeout and keepalive parameters if it seems reasonable
 (defun invoke-rpc-method (con service method args &key notification)
