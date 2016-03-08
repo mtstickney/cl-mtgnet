@@ -105,9 +105,8 @@
 
 (defmethod transport-read ((transport asynchronous-tcp-transport) size)
   (let* ((seq (make-array size :element-type '(unsigned-byte 8))))
-    (blackbird:attach (transport-read-into! transport seq)
-                      (lambda ()
-                        seq))))
+    (blackbird:wait (transport-read-into! transport seq)
+      seq)))
 
 ;; FIXME: the state tracking in here is kinda shaky, it'd be better to
 ;; use a proper queuing scheme.
