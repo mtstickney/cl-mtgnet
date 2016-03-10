@@ -79,14 +79,14 @@
                                                  (error-cb transport))
                                         (funcall (error-cb transport) ev)))
                           :connect-cb (lambda (socket)
+                                        (when (keep-alive-p transport)
+                                          (uv:uv-tcp-keepalive (as:socket-c (as:streamish (socket-stream transport)))
+                                                               1 ;; enable it
+                                                               30 ;; probe every 30 seconds
+                                                               ))
                                         (resolve socket))
                           :stream t
-                          :dont-drain-read-buffer t))
-    (when (keep-alive-p transport)
-      (uv:uv-tcp-keepalive (as:socket-c (as:streamish (socket-stream transport)))
-                           1 ;; enable it
-                           30 ;; delay 30 seconds before starting keepalive.
-                           ))))
+                          :dont-drain-read-buffer t))))
 
 ;; FIXME: do we need to run the error callback for any in-progress operation?
 (defmethod transport-disconnect ((transport asynchronous-tcp-transport))
