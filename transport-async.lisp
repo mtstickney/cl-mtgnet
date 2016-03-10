@@ -51,6 +51,15 @@
   (:default-initargs :stream nil :keep-alive nil)
   (:documentation "Class for transporting data over a TCP socket asynchronously."))
 
+(defun set-keepalive (socket delay)
+  (check-type delay (integer 0))
+  (let ((result (uv:uv-tcp-keepalive socket
+                                     1 ;; enable it
+                                     delay)))
+    (unless (= result 0)
+      (error "Error setting keepalive options: ~A." result))
+    (values)))
+
 (defmethod transport-connect ((transport asynchronous-tcp-transport))
   (when (socket-stream transport)
     (transport-disconnect transport))
@@ -80,10 +89,9 @@
                                         (funcall (error-cb transport) ev)))
                           :connect-cb (lambda (socket)
                                         (when (keep-alive-p transport)
-                                          (uv:uv-tcp-keepalive (as:socket-c (as:streamish (socket-stream transport)))
-                                                               1 ;; enable it
-                                                               30 ;; probe every 30 seconds
-                                                               ))
+                                          (set-keepalive (as:socket-c (as:streamish (socket-stream transport)))
+                                                         ;; probe every 30 seconds.
+                                                         30))
                                         (resolve socket))
                           :stream t
                           :dont-drain-read-buffer t))))
