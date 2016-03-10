@@ -90,8 +90,8 @@
                           :connect-cb (lambda (socket)
                                         (when (keep-alive-p transport)
                                           (set-keepalive (as:socket-c (as:streamish (socket-stream transport)))
-                                                         ;; probe every 30 seconds.
-                                                         30))
+                                                         ;; probe every 2 minutes.
+                                                         120))
                                         (resolve socket))
                           :stream t
                           :dont-drain-read-buffer t))))
