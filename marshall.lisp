@@ -150,7 +150,7 @@ encode VALUE."
 (define-json-obj rpc-error
   "Error object contained in a failed rpc-result."
   (message :initial "" :type string :read-only t)
-  (code :initial 0 :type integer :read-only t)
+  (code :initial 0 :read-only t)
   (data :initial nil :read-only t :optional :read-write))
 
 (define-json-obj rpc-result
