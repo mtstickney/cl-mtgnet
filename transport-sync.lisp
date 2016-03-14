@@ -11,16 +11,18 @@
   "Wait for a promise to complete, then return it's value."
   (when (boundp '*rpc-batch*)
     (warn "MTGNET.SYNC:WAIT called with *RPC-BATCH* bound, this will probably deadlock."))
-  (let ((result-vals nil)
-        (error nil))
+  (let* ((no-vals (gensym "NO-VALS"))
+         (result-vals no-vals)
+         (error no-vals))
     (blackbird:chain (blackbird:attach promise
                                        (lambda (&rest vals)
                                          (setf result-vals vals)))
       (:catch (ev)
         (setf error ev)))
-    (unless (or error result-vals)
+    (when (and (eq error no-vals)
+               (eq result-vals no-vals))
       (error "Synchronous promise is not complete at time of WAIT. Something is very wrong here..."))
-    (if error
+    (if (not (eq error no-vals))
         ;; Throw the received error.
         (error error)
         (values-list result-vals))))
