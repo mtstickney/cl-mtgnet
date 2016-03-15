@@ -47,9 +47,19 @@
    (read-callback :initarg :read-cb :accessor read-cb)
    (write-callback :initarg :write-cb :accessor write-cb)
    (error-callback :initarg :err-cb :accessor error-cb)
-   (keep-alive :initarg :keep-alive :accessor keep-alive-p))
+   (keep-alive :initarg :keep-alive :accessor keep-alive-p)
+   (last-error :initform nil :accessor last-error))
   (:default-initargs :stream nil :keep-alive nil)
   (:documentation "Class for transporting data over a TCP socket asynchronously."))
+
+(defun register-op! (transport read write error)
+  (check-type read (or function null))
+  (check-type write (or function null))
+  (check-type error (or function null))
+  (setf (read-cb transport) read
+             (write-cb transport) write
+             (error-cb transport) error)
+  (values))
 
 (defun set-keepalive (socket delay)
   (check-type delay (integer 0))
@@ -139,23 +149,27 @@
         (unless (= read-pos end)
           ;; If that wasn't enough, set a handler to try again when
           ;; there's more data to read.
-          (setf (read-cb transport) #'resume-read
-                (write-cb transport) nil
-                (error-cb transport) (lambda (ev)
-                                       (unregister-op! transport)
-                                       (reject ev))))))))
+          (register-op! transport
+                        #'resume-read
+                        nil
+                        (lambda (ev)
+                          (unregister-op! transport)
+                          (format *debug-io* "Read-into! failure~%")
+                          (reject ev))))))))
 
 (defmethod transport-write ((transport asynchronous-tcp-transport) data)
   (blackbird:with-promise (resolve reject)
-    (setf (read-cb transport) nil
-          (write-cb transport) (lambda (socket)
-                                 (declare (ignore socket))
-                                 ;; Write's complete, unregister the
-                                 ;; handlers
-                                 (unregister-op! transport)
-                                 (resolve))
-          (error-cb transport) (lambda (ev)
-                                 (unregister-op! transport)
-                                 (reject ev)))
+    (register-op! transport
+                  nil
+                  (lambda (socket)
+                    (declare (ignore socket))
+                    ;; Write's complete, unregister the handlers.
+                    (unregister-op! transport)
+                    (format *debug-io* "write success~%")
+                    (resolve))
+                  (lambda (ev)
+                    (unregister-op! transport)
+                    (format *debug-io* "read success~%")
+                    (reject ev)))
     ;; How does {finish,force}-output play with async-io-stream?
     (write-sequence data (socket-stream transport))))
