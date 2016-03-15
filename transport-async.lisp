@@ -59,6 +59,19 @@
   (setf (read-cb transport) read
              (write-cb transport) write
              (error-cb transport) error)
+  (let ((err nil))
+    ;; Check and clear the last-error status.
+    (rotatef (last-error transport) err)
+    (cond
+      (err
+       ;; Signal the error directly.
+       (funcall error err)
+       (unregister-op! transport))
+      (t
+       ;; All is well, register the op.
+       (setf (read-cb transport) read
+             (write-cb transport) write
+             (error-cb transport) error))))
   (values))
 
 (defun set-keepalive (socket delay)
@@ -73,7 +86,8 @@
 (defun unregister-op! (transport)
   (setf (read-cb transport) nil
         (write-cb transport) nil
-        (error-cb transport) nil))
+        (error-cb transport) (lambda (ev)
+                               (setf (last-error transport) ev))))
 
 (defmethod transport-connect ((transport asynchronous-tcp-transport))
   (when (socket-stream transport)
