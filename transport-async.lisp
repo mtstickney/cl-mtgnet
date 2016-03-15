@@ -60,6 +60,11 @@
       (error "Error setting keepalive options: ~A." result))
     (values)))
 
+(defun unregister-op! (transport)
+  (setf (read-cb transport) nil
+        (write-cb transport) nil
+        (error-cb transport) nil))
+
 (defmethod transport-connect ((transport asynchronous-tcp-transport))
   (when (socket-stream transport)
     (transport-disconnect transport))
@@ -71,7 +76,7 @@
             (reject ev)
             ;; un-register ourselves so we don't trigger on subsequent
             ;; errors.
-            (setf (error-cb transport) nil)))
+            (unregister-op! transport)))
 
     (setf (socket-stream transport)
           (as:tcp-connect (tcp-address transport) (tcp-port transport)
@@ -105,11 +110,6 @@
         (serious-condition (c)
           (reject c))))
     (resolve)))
-
-(defun unregister-op! (transport)
-  (setf (read-cb transport) nil
-        (write-cb transport) nil
-        (error-cb transport) nil))
 
 (defmethod transport-read ((transport asynchronous-tcp-transport) size)
   (let* ((seq (make-array size :element-type '(unsigned-byte 8))))
