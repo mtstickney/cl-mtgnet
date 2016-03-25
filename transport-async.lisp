@@ -168,7 +168,6 @@
                         nil
                         (lambda (ev)
                           (unregister-op! transport)
-                          (format *debug-io* "Read-into! failure~%")
                           (reject ev))))))))
 
 (defmethod transport-write ((transport asynchronous-tcp-transport) data)
@@ -179,11 +178,9 @@
                     (declare (ignore socket))
                     ;; Write's complete, unregister the handlers.
                     (unregister-op! transport)
-                    (format *debug-io* "write success~%")
                     (resolve))
                   (lambda (ev)
                     (unregister-op! transport)
-                    (format *debug-io* "read success~%")
                     (reject ev)))
     ;; How does {finish,force}-output play with async-io-stream?
     (write-sequence data (socket-stream transport))))
