@@ -193,7 +193,7 @@ before returning."
     (get-result)))
 
 (define-condition remote-warning (warning)
-  ((msg :initarg msg :accessor remote-warning-msg)
+  ((msg :initarg :msg :accessor remote-warning-msg)
    (code :initarg :code :accessor remote-warning-code))
   (:report (lambda (c s)
              (format s "Remote warning: ~A (~A)."
