@@ -1,5 +1,13 @@
 (in-package #:mtgnet-sys)
 
+(defun snake-case-to-lisp (string)
+  (check-type string string)
+  (nstring-upcase (substitute #\- #\_ string)))
+
+(defun lisp-to-snake-case (string)
+  (check-type string string)
+  (substitute #\_ #\- (nstring-downcase string)))
+
 (defun encode-field (field value &optional (encoder #'json:encode-json))
   "Encode VALUE as an object field named FIELD, using ENCODER to
 encode VALUE."
@@ -108,22 +116,24 @@ encode VALUE."
                                         `(cdr cell))))))
            (apply #',make-func arglist)))
        (defun ,unmarshall-func (json-string)
-         (let ((json-obj (json:decode-json-from-string json-string)))
+         (let ((json-obj (let ((json:*json-identifier-name-to-lisp* #'snake-case-to-lisp))
+                           (json:decode-json-from-string json-string))))
            (,build-func json-obj)))
        (defun ,marshall-func (obj)
-         (json:with-object ()
-           ,@(flet ((accessor (field) (cat-symbol name '#:- field)))
-                   (loop for s in serialized-slots
-                      collect (let ((encode-form `(encode-field ',(slot-symbol s)
-                                                                (,(accessor (slot-symbol s)) obj)
-                                                                ,@(if (slot-marshall-type s)
-                                                                      (list `#',(cat-symbol '#:marshall-
-                                                                                            (slot-marshall-type s)))
-                                                                      '()))))
-                                (if (slot-optional-p s :write)
-                                    `(when (,(accessor (slot-symbol s)) obj)
-                                       ,encode-form)
-                                    encode-form)))))))))
+         (let ((json:*lisp-identifier-name-to-json* #'lisp-to-snake-case))
+           (json:with-object ()
+             ,@(flet ((accessor (field) (cat-symbol name '#:- field)))
+                     (loop for s in serialized-slots
+                        collect (let ((encode-form `(encode-field ',(slot-symbol s)
+                                                                  (,(accessor (slot-symbol s)) obj)
+                                                                  ,@(if (slot-marshall-type s)
+                                                                        (list `#',(cat-symbol '#:marshall-
+                                                                                              (slot-marshall-type s)))
+                                                                        '()))))
+                                  (if (slot-optional-p s :write)
+                                      `(when (,(accessor (slot-symbol s)) obj)
+                                         ,encode-form)
+                                      encode-form))))))))))
 
 ;; TODO: deal with the whole encoder thing (might want have
 ;; marshalling types set for args rather than decoders so we can
