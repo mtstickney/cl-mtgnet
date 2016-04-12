@@ -17,7 +17,9 @@
    method functions that handle the details of calling. The method
    definition macro is relatively simple:
 
-  :(defmacro define-rpc-method ((method &optional service  &key notification) &body args))
+#+begin_src lisp
+  (defmacro define-rpc-method ((method &optional service  &key notification) &body args))
+#+end_src
 
    =method= and =service= are symbols naming the method and the
    service =method= belongs to. =define-rpc-method= will create a
@@ -36,26 +38,28 @@
    (since no response is expected from the server).
 
 *** Examples
-  : ;; Define a method without specifying a service
-  : (define-rpc-method
-  :    ;; Method name
-  :    (describe-method)
-  :    ;; Method arguments
-  :    method-name)
-  :
-  : ;; Invoke the method on the 'server' service
-  : ;; (wait (describe-method sock 'server "version")) => [...]
-  :
-  : ;; Define a method on a specific service
-  : (define-rpc-method (describe-method server) method-name)
-  :
-  : ;; (wait (server-describe-method "version")) => [...]
-  :
-  : ;; Define a notification method
-  : (define-rpc-method (poke server :notification t) msg)
-  :
-  : ;; Note the lack of a WAIT call here
-  : ;; (server-poke "Poked for no reason!") => No value
+#+begin_src lisp
+  ;; Define a method without specifying a service
+  (define-rpc-method
+     ;; Method name
+     (describe-method)
+     ;; Method arguments
+     method-name)
+  
+  ;; Invoke the method on the 'server' service
+  ;; (wait (describe-method sock 'server "version")) => [...]
+  
+  ;; Define a method on a specific service
+  (define-rpc-method (describe-method server) method-name)
+  
+  ;; (wait (server-describe-method "version")) => [...]
+  
+  ;; Define a notification method
+  (define-rpc-method (poke server :notification t) msg)
+  
+  ;; Note the lack of a WAIT call here
+  ;; (server-poke "Poked for no reason!") => No value
+#+end_src
 
 ** Batched Calls
    The MTGNet protocol features the ability to send requests to the
@@ -63,15 +67,17 @@
    responses for those calls until they're all ready before returning
    them. Clients can submit a batch of calls using the
    =with-batch-calls= macro:
-  : ;; With STREAM, DESCRIBE-METHOD and VERSION defined elsewhere...
-  : (let (describe-future
-  :       version-future)
-  :   (with-batch-calls
-  :       (setf describe-future (server-describe-method sock "version")
-  :             version-future (server-version sock)))
-  :   (values (wait description-future)
-  :           ;; This will return immediately
-  :           (wait version-future)))
+#+begin_src lisp
+  ;; With STREAM, DESCRIBE-METHOD and VERSION defined elsewhere...
+  (let (describe-future
+        version-future)
+    (with-batch-calls
+        (setf describe-future (server-describe-method sock "version")
+              version-future (server-version sock)))
+    (values (wait description-future)
+            ;; This will return immediately
+            (wait version-future)))
+#+end_src
 
    Any method calls made within a =with-batch-calls= macro won't be
    submitted to the server until the end of the block. *Note*: since
