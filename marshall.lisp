@@ -1,29 +1,10 @@
 (in-package #:mtgnet-sys)
 
-(defun snake-case-to-lisp (string)
-  (check-type string string)
-  (nstring-upcase (substitute #\- #\_ string)))
-
-(defun lisp-to-snake-case (string)
-  (check-type string string)
-  (substitute #\_ #\- (nstring-downcase string)))
-
 (defun encode-field (field value &optional (encoder #'json:encode-json))
   "Encode VALUE as an object field named FIELD, using ENCODER to
 encode VALUE."
   (json:as-object-member (field)
     (funcall encoder value)))
-
-(defun json-key (symb)
-  "Return the symbol produced by JSON encoding and decoding SYMB."
-  (let ((json:*lisp-identifier-name-to-json* #'lisp-to-snake-case)
-        (json:*json-identifier-name-to-lisp* #'snake-case-to-lisp))
-    (let ((result (funcall json::*identifier-name-to-key*
-                           (json:decode-json-from-string
-                            (funcall json::*json-identifier-name-to-lisp*
-                                     (json:encode-json-to-string symb))))))
-      (format *debug-io* "JSON-KEY result: ~S~%" result)
-      result)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun serial-slot-p (s)
