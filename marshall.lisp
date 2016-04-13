@@ -16,39 +16,44 @@ encode VALUE."
 
 (defun json-key (symb)
   "Return the symbol produced by JSON encoding and decoding SYMB."
-  (funcall json::*identifier-name-to-key*
-           (json:decode-json-from-string
-            (funcall json::*json-identifier-name-to-lisp*
-                     (json:encode-json-to-string symb)))))
+  (let ((json:*lisp-identifier-name-to-json* #'lisp-to-snake-case)
+        (json:*json-identifier-name-to-lisp* #'snake-case-to-lisp))
+    (let ((result (funcall json::*identifier-name-to-key*
+                           (json:decode-json-from-string
+                            (funcall json::*json-identifier-name-to-lisp*
+                                     (json:encode-json-to-string symb))))))
+      (format *debug-io* "JSON-KEY result: ~S~%" result)
+      result)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun serial-slot-p (s)
     (or (symbolp s)
         (and (listp s)
-             (destructuring-bind (name &key (marshall t) &allow-other-keys)
+             (destructuring-bind (name field &key (marshall t) &allow-other-keys)
                  s
-               (declare (ignore name))
+               (declare (ignore name field))
                marshall))))
 
   (defun optional-slot-p (s)
     (and (listp s)
-         (getf (rest s) :optional)))
+         (getf (cddr s) :optional)))
 
   (defun slot-symbol (s)
     (etypecase s
-      (symbol s)
       (list (destructuring-bind (name &rest r) s
               (declare (ignore r))
               name))))
 
+  (defun slot-key (s)
+    (second s))
+
   (defun slot-marshall-type (s)
     (etypecase s
-      (symbol nil)
-      (list (getf (rest s) :marshall-type))))
+      (list (getf (cddr s) :marshall-type))))
 
   (defun cat-symbol (symbol &rest rest)
-  (intern (format nil "~{~A~}" (mapcar #'symbol-name
-                                       (cons symbol rest)))))
+    (intern (format nil "~{~A~}" (mapcar #'symbol-name
+                                         (cons symbol rest)))))
 
   (defun slot-optional-p (slot type)
     (check-type type symbol)
@@ -94,17 +99,17 @@ encode VALUE."
          ,@(loop for slot in slots
               collect
                 (etypecase slot
-                  (symbol slot)
                   (list
-                   (destructuring-bind (name &rest keyword-pairs &key initial
+                   (destructuring-bind (name field &rest keyword-pairs &key initial
                                              &allow-other-keys)
                        slot
+                     (declare (ignore field))
                      `(,name ,initial :allow-other-keys t ,@keyword-pairs))))))
        ;; Produce a structure from a decoded json object
        (defun ,build-func (json-obj)
          (let ((arglist '()))
            ,@(loop for s in serialized-slots
-                collect `(let ((cell (assoc (json-key ',(slot-symbol s)) json-obj)))
+                collect `(let ((cell (assoc ,(slot-key s) json-obj :test #'equalp)))
                            ,@(unless (slot-optional-p s :read)
                                      `((unless cell
                                          (error 'invalid-json-obj :type ',name :json json-obj))))
@@ -116,24 +121,24 @@ encode VALUE."
                                         `(cdr cell))))))
            (apply #',make-func arglist)))
        (defun ,unmarshall-func (json-string)
-         (let ((json-obj (let ((json:*json-identifier-name-to-lisp* #'snake-case-to-lisp))
+         (let ((json-obj (let ((json:*json-identifier-name-to-lisp* #'identity)
+                               (json:*identifier-name-to-key* #'identity))
                            (json:decode-json-from-string json-string))))
            (,build-func json-obj)))
        (defun ,marshall-func (obj)
-         (let ((json:*lisp-identifier-name-to-json* #'lisp-to-snake-case))
-           (json:with-object ()
-             ,@(flet ((accessor (field) (cat-symbol name '#:- field)))
-                     (loop for s in serialized-slots
-                        collect (let ((encode-form `(encode-field ',(slot-symbol s)
-                                                                  (,(accessor (slot-symbol s)) obj)
-                                                                  ,@(if (slot-marshall-type s)
-                                                                        (list `#',(cat-symbol '#:marshall-
-                                                                                              (slot-marshall-type s)))
-                                                                        '()))))
-                                  (if (slot-optional-p s :write)
-                                      `(when (,(accessor (slot-symbol s)) obj)
-                                         ,encode-form)
-                                      encode-form))))))))))
+         (json:with-object ()
+           ,@(flet ((accessor (field) (cat-symbol name '#:- field)))
+                   (loop for s in serialized-slots
+                      collect (let ((encode-form `(encode-field ,(slot-key s)
+                                                                (,(accessor (slot-symbol s)) obj)
+                                                                ,@(if (slot-marshall-type s)
+                                                                      (list `#',(cat-symbol '#:marshall-
+                                                                                            (slot-marshall-type s)))
+                                                                      '()))))
+                                (if (slot-optional-p s :write)
+                                    `(when (,(accessor (slot-symbol s)) obj)
+                                       ,encode-form)
+                                    encode-form)))))))))
 
 ;; TODO: deal with the whole encoder thing (might want have
 ;; marshalling types set for args rather than decoders so we can
@@ -152,23 +157,23 @@ encode VALUE."
 
 (define-json-obj rpc-call
   "A single method invocation."
-  (service :initial "" :type string :read-only t)
-  (method :initial "" :type string :read-only t)
-  (args :initial '() :type list :read-only t :marshall-type arg-list)
-  (id :initial nil :optional :read :read-only t))
+  (service "service" :initial "" :type string :read-only t)
+  (method "method" :initial "" :type string :read-only t)
+  (args "args" :initial '() :type list :read-only t :marshall-type arg-list)
+  (id "id" :initial nil :optional :read :read-only t))
 
 (define-json-obj rpc-error
   "Error object contained in a failed rpc-result."
-  (message :initial "" :type string :read-only t)
-  (code :initial 0 :read-only t)
-  (data :initial nil :read-only t :optional :read-write))
+  (message "message" :initial "" :type string :read-only t)
+  (code "code" :initial 0 :read-only t)
+  (data "data" :initial nil :read-only t :optional :read-write))
 
 (define-json-obj rpc-result
   "The result of an RPC method invocation."
-  (data :initial nil :optional :read-write :read-only t)
-  (error :initial nil :optional :read-write :read-only t :marshall-type rpc-error)
-  (warnings :initial '() :optional :read-write :read-only t :marshall-type rpc-warning-list)
-  (id :intitial nil :optional :read-write :read-only t))
+  (data "data" :initial nil :optional :read-write :read-only t)
+  (error "error" :initial nil :optional :read-write :read-only t :marshall-type rpc-error)
+  (warnings "warnings" :initial '() :optional :read-write :read-only t :marshall-type rpc-warning-list)
+  (id "id" :intitial nil :optional :read-write :read-only t))
 
 (defmacro define-object-array (name type)
   (let* ((predicate-name (cat-symbol name '#:-p))
@@ -190,7 +195,9 @@ encode VALUE."
          (mapcar #',(cat-symbol '#:build- type) obj))
        (defun ,(cat-symbol '#:unmarshall- name) (str)
          (check-type str string)
-         (let ((obj (json:decode-json-from-string str)))
+         (let* ((json:*identifier-name-to-key* #'identity)
+                (json:*json-identifier-name-to-lisp* #'identity)
+                (obj (json:decode-json-from-string str)))
            (,(cat-symbol '#:build- name) obj))))))
 
 (define-object-array rpc-request rpc-call)
