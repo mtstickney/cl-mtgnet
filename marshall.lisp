@@ -81,11 +81,13 @@ encode VALUE."
               collect
                 (etypecase slot
                   (list
-                   (destructuring-bind (name field &rest keyword-pairs &key initial
+                   (destructuring-bind (name field &rest keyword-pairs &key initial (type nil typep) (read-only nil read-only-p)
                                              &allow-other-keys)
                        slot
                      (declare (ignore field))
-                     `(,name ,initial :allow-other-keys t ,@keyword-pairs))))))
+                     `(,name ,initial
+                             ,@(if typep `(:type ,type) nil)
+                             ,@(if read-only-p `(:read-only ,read-only))))))))
        ;; Produce a structure from a decoded json object
        (defun ,build-func (json-obj)
          (let ((arglist '()))
