@@ -60,9 +60,12 @@
     (keep-socket-alive (usocket:socket (socket transport))))
   (values))
 
-(defmethod transport-disconnect ((transport synchronous-tcp-transport))
+(defmethod transport-disconnect ((transport synchronous-tcp-transport) &key abort)
   (let ((sock (socket transport)))
     (when sock
+      (let ((stream (usocket:socket-stream sock)))
+        ;; Don't flush data etc. if :ABORT is true.
+        (close stream :abort abort))
       (handler-case (usocket:socket-close sock)
         (error (c)
           (warn "Error signalled while closing socket (~S): ~A" c c)))

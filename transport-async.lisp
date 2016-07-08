@@ -126,11 +126,11 @@
                           :dont-drain-read-buffer t))))
 
 ;; FIXME: do we need to run the error callback for any in-progress operation?
-(defmethod transport-disconnect ((transport asynchronous-tcp-transport))
+(defmethod transport-disconnect ((transport asynchronous-tcp-transport) &key abort)
   (blackbird:with-promise (resolve reject)
     (when (socket-stream transport)
       (handler-case
-          (close (socket-stream transport))
+          (close (socket-stream transport) :abort t)
         (serious-condition (c)
           (reject c))))
     (resolve)))

@@ -10,9 +10,10 @@
   (:documentation "Connect TRANSPORT to the remote end, if necessary.")
   (:method (transport)))
 
-(defgeneric transport-disconnect (transport)
+(defgeneric transport-disconnect (transport &key abort)
   (:documentation "Disconnect TRANSPORT from the remote end, if necessary.")
-  (:method (transport)))
+  (:method (transport &key abort)
+    (declare (ignore abort))))
 
 (defgeneric transport-read (transport size)
   (:documentation "Read the next SIZE elements of data from TRANSPORT."))
@@ -38,10 +39,12 @@
                                   (flexi-streams:make-in-memory-output-stream)
                                   :external-format (external-format instance))))
 
-(defmethod transport-disconnect ((transport string-output-transport))
-  (let* ((stream (flexi-streams:flexi-stream-stream (output-stream transport)))
-         (seq (flexi-streams:get-output-stream-sequence stream)))
-    (flexi-streams:octets-to-string seq :external-format (external-format transport))))
+(defmethod transport-disconnect ((transport string-output-transport) &key abort)
+  (if abort
+      ""
+      (let* ((stream (flexi-streams:flexi-stream-stream (output-stream transport)))
+             (seq (flexi-streams:get-output-stream-sequence stream)))
+        (flexi-streams:octets-to-string seq :external-format (external-format transport)))))
 
 (defmethod transport-write ((transport string-output-transport) data)
   (let ((stream (output-stream transport)))
