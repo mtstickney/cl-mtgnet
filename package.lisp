@@ -51,10 +51,12 @@
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
+           #:remote-warning-data
            #:remote-error
            #:remote-error-type
            #:remote-error-msg
            #:remote-error-code
+           #:remote-error-data
            #:invalid-json-obj
            #:*default-encoder*)
   ;; Extension points
@@ -140,6 +142,7 @@
                 #:remote-warning
                 #:remote-warning-msg
                 #:remote-warning-code
+                #:remote-warning-data
                 #:remote-error
                 #:remote-error-type
                 #:remote-error-msg
@@ -157,6 +160,7 @@
            #:remote-warning
            #:remote-warning-msg
            #:remote-warning-code
+           #:remote-error-data
            #:remote-error
            #:remote-error-type
            #:remote-error-msg

@@ -194,19 +194,23 @@ before returning."
 
 (define-condition remote-warning (warning)
   ((msg :initarg :msg :accessor remote-warning-msg)
-   (code :initarg :code :accessor remote-warning-code))
+   (code :initarg :code :accessor remote-warning-code)
+   (data :initarg :data :accessor remote-warning-data))
   (:report (lambda (c s)
              (format s "Remote warning: ~A (~A)."
                      (remote-warning-msg c)
-                     (remote-warning-code c)))))
+                     (remote-warning-code c))))
+  (:default-initargs :data nil))
 (define-condition remote-error (error)
   ((type :initarg :type :accessor remote-error-type)
    (msg :initarg :msg :accessor remote-error-msg)
-   (code :initarg :code :accessor remote-error-code))
+   (code :initarg :code :accessor remote-error-code)
+   (data :initarg :data :accessor remote-error-data))
   (:report (lambda (c s)
              (format s "Remote error: ~A (~A)."
                      (remote-error-msg c)
-                     (remote-error-code c)))))
+                     (remote-error-code c))))
+  (:default-initargs :data nil))
 
 (defun make-result-promise (con id)
   "Return a promise that produces a result with an id of ID from CON."
