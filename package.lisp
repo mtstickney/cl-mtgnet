@@ -147,6 +147,7 @@
                 #:remote-error-type
                 #:remote-error-msg
                 #:remote-error-code
+                #:remote-error-data
                 #:invalid-json-obj
                 #:*default-encoder*)
   (:export #:rpc-connection
