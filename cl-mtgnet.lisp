@@ -219,6 +219,7 @@ before returning."
   (blackbird:multiple-promise-bind (result) (read-result-with-id con id)
     (mapc (lambda (w) (warn 'remote-warning
                             :msg (rpc-error-message w)
+                            :data (rpc-error-data w)
                             :code (rpc-error-code w)))
           (rpc-result-warnings result))
     (let* ((error (rpc-result-error result))
@@ -226,6 +227,7 @@ before returning."
       (when error
         (error 'remote-error
                :msg (rpc-error-message error)
+               :data (rpc-error-data error)
                :code (rpc-error-code error)
                :type (if (typep condition-type 'string) condition-type nil))))
     (rpc-result-data result)))
